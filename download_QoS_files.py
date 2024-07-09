@@ -21,6 +21,7 @@ def get_matching_files(ssh_client, remote_path, patterns):
     return matching_files
 
 def download_files(ssh_client, remote_path, local_path, filenames, hostname):
+    os.makedirs(local_path, exist_ok=True)
     with SCPClient(ssh_client.get_transport()) as scp:
         for filename in filenames:
             remote_file = os.path.join(remote_path, filename)

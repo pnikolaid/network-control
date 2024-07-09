@@ -1,8 +1,6 @@
-import copy
-
 # All hosts
 remote_path = '/tmp'  # contains filepath to QoS files in each host
-local_path = './QoS_files' # contains filepath to 
+local_path = '../QoS_files' # contains filepath to QoS files in server
 
 # gNB + CN + edge + RL algo
 finarfin = {

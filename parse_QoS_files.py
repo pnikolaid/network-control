@@ -6,6 +6,8 @@ import numpy as np
 import concurrent.futures
 import re
 
+from parameters import local_path
+
 def list_files_in_directory(folder):
     """Return a list of filenames in the given directory."""
     try:
@@ -61,7 +63,8 @@ def compute_delays(timestamps_dict):
             if -1 in times:
                 print()
                 print("Ignoring frame that does not have all timestamps...")
-                print(f"Timestamps: {times}")
+                frame_id = (port, seq_num)
+                print(f"{frame_id}: {times}")
                 print()
                 errors += 1
                 continue
@@ -202,7 +205,7 @@ def perform_in_parallel(function, f_inputs):
 
 
 # Create a dictionary to store timestamps: port -> sequence number -> timestamp x 4 (flows are differentiated based on the port that each OpenRTiST server uses)
-directory = '/home/wlab/panos/algo/QoS_files'
+directory = local_path
 filenames = list_files_in_directory(directory)
 
 
