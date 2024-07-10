@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Parameters
-N = 5  # Number of users
+N = 2  # Number of users
 T = 3600  # Total time units to simulate
 
 # Exponential distribution parameters

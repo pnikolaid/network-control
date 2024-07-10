@@ -35,7 +35,7 @@ def get_used_ports_via_paramiko(hostname, port, username, password):
 def main(setup, host_dictionary):
 
     # Remote server details
-    server = host_dictionary[setup['server'][0]]
+    server = host_dictionary[setup['server'][0][0]]
     hostname = server["IP"]
     port = server["port"]
     username = server["username"]
