@@ -47,7 +47,7 @@ plt.grid(True)
 plt.tight_layout()
 
 # Save the plot as JPG in the plots folder
-plt.savefig(os.path.join(plots_dir, 'user_status.jpg'), dpi=300)  # Adjust dpi as needed
+plt.savefig(os.path.join(plots_dir, 'user_status.pdf'), dpi=300)  # Adjust dpi as needed
 plt.close()
 
 # Calculate and plot total active users over time
@@ -63,7 +63,7 @@ plt.grid(True)
 plt.tight_layout()
 
 # Save the plot as JPG in the plots folder
-plt.savefig(os.path.join(plots_dir, 'total_active_users.jpg'), dpi=300)  # Adjust dpi as needed
+plt.savefig(os.path.join(plots_dir, 'total_active_users.pdf'), dpi=300)  # Adjust dpi as needed
 plt.close()
 
 
@@ -77,7 +77,3 @@ print("Frequency of Number of Active Users:")
 for num_users, count in enumerate(active_users_counts):
     if count > 0:
         print(f"{num_users} active users occurred {count} times which is {round(100*count/total_counts, 2)} fraction of time")
-
-
-
-print(f"Plots saved in the '{plots_dir}' folder: user_status.jpg and total_active_users.jpg")
