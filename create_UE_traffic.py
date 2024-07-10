@@ -25,7 +25,9 @@ for user in range(N):
         time += int(on_time + off_time)
 
 # Create directory if it doesn't exist
-plots_dir = 'plots'
+parent_dir = os.path.dirname(os.getcwd())
+plots_dir = os.path.join(parent_dir, "plots")
+print(plots_dir)
 if not os.path.exists(plots_dir):
     os.makedirs(plots_dir)
 
