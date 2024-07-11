@@ -32,6 +32,25 @@ def get_used_ports_via_paramiko(hostname, port, username, password):
         # Close the SSH connection
         client.close()
 
+def get_used_ports(client):
+    # Execute the command to get the list of used ports
+    stdin, stdout, stderr = client.exec_command('ss -tuln')
+
+    # Read the command output
+    output = stdout.read().decode('utf-8')
+    
+    # Parse the output to extract port numbers
+    used_ports = set()
+    for line in output.splitlines():
+        if line.startswith('tcp') or line.startswith('udp'):
+            parts = line.split()
+            local_address = parts[4]
+            port = local_address.split(':')[-1]
+            if port.isdigit():
+                used_ports.add(int(port))
+    used_ports_list = list(sorted(used_ports))
+    return used_ports_list
+
 def main(setup, host_dictionary):
 
     # Remote server details
