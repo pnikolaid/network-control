@@ -93,7 +93,7 @@ for command in server_commands:
     time.sleep(5)
 
 
-time.sleep(100)
+input("Press Enter to continue...")
 
 # Stop all procedures on each host
 bash_folder = f"~/{experiment_folder}/network-bash-scripts"
