@@ -17,8 +17,13 @@ def keep_only_experiment_hosts(setup):
         hosts.pop(key)
 
 # Host parameters
+
+experiment_folder = '$HOME/panos'   # folder that contains all required repositories (should be the same for all hosts)
+bash_folder = f"{experiment_folder}/network-bash-scripts"
+configs_5G_folder = f"{experiment_folder}/5G-configs-logs"
+plots_folder = f"{experiment_folder}/plots"
 remote_path = '/tmp'  # contains filepath to QoS files in each host
-local_path = '../QoS_files' # contains filepath to QoS files in server
+local_path = f"{experiment_folder}/QoS_files"  # contains filepath to QoS files in server
 
 # gNB + CN + edge + RL algo
 finarfin = {
@@ -80,8 +85,6 @@ all_hosts = {
     "feanor" : feanor
 }
 
-experiment_folder = 'panos'   # folder that contains all required repositories (should be the same for all hosts)
-bash_folder = f"~/{experiment_folder}/network-bash-scripts"
 hosts = copy.deepcopy(all_hosts)
 
 # Experiment Setup
@@ -91,8 +94,19 @@ keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
 
-# Experiment Duration
+# Experiment Parameters
 experiment_duration = 3600
+initial_bws = [int(106*x/sum(UEs_per_slice)) for x in UEs_per_slice]
+leftover_bw = max(106 - sum(initial_bws), 0)
+initial_bws[0] += leftover_bw
+
+UEs_per_slice_string = ''
+for x in UEs_per_slice:
+    UEs_per_slice_string += f"{x} "
+
+initial_bws_string = ''
+for x in initial_bws:
+    initial_bws_string += f"{x} "
 
 # Traffic Parameters
 openrtist_mean_on_time = 60

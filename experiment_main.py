@@ -1,4 +1,4 @@
-from parameters import hosts, all_hosts, experiment_folder, bash_folder, experiment_setup
+from parameters import hosts, all_hosts, bash_folder, experiment_setup, configs_5G_folder, initial_bws_string, UEs_per_slice_string
 from download_QoS_files import create_ssh_client
 from get_server_used_ports import get_used_ports
 import time
@@ -78,7 +78,23 @@ for host_name in all_hosts:
         output = stdout.read().decode('utf-8')
         print(output)
 
-input(f"Any clients/servers, quectel modules and 5G systems have been stopped to reset the setup! \n Press Enter to continue...")
+input(f"Any clients/servers, quectel modules and 5G systems have been stopped to reset the setup! \nPress Enter to continue...")
+
+# Reset slices_dl.txt, slice_bws_ul.txt, state_dl.txt, state_ul.txt and UEs_per_slice.txt
+ues_per_slice_filepath = configs_5G_folder + '/UEs_per_slice.txt'
+bws_dl_filepath = configs_5G_folder + '/slice_bws_dl.txt'
+bws_ul_filepath = configs_5G_folder + '/slice_bws_ul.txt'
+state_dl_filepath = configs_5G_folder + '/state_dl.txt'
+state_ul_filepath = configs_5G_folder + '/state_ul.txt'
+reset_5G_commands = [f"echo 666 0 >| {ues_per_slice_filepath}", f"echo 106 0 >| {bws_dl_filepath}", f"echo 106 0 >| {bws_ul_filepath}"]
+
+for command in reset_5G_commands:
+    print(f"({server_name}) Issuing command:\n {command}")
+    stdin, stdout, stderr = server_ssh.exec_command(command, get_pty=True)
+    output = stdout.read().decode('utf-8')
+    print(output)
+    
+input(f"Files in 5G-configs-logs reseted \nPress Enter to continue...")
 
 # Create OpenRTiST and iperf3 servers on the server host
 openrtist_server_commands = [f"cd {bash_folder} \n ./start_openrtist_server.sh {port}" for port in openrtist_ports]
@@ -94,7 +110,7 @@ for command in server_commands:
     print(output)
     time.sleep(5)
 
-input(f"All required iperf3 and OpenRTiST servers are up at {server_name}! \n Press Enter to continue...")
+input(f"All required iperf3 and OpenRTiST servers are up at {server_name}! \nPress Enter to continue...")
 
 # Start 5G system
 start_CN_command= [f"cd {bash_folder} \n sudo ./start_5G_CN.sh"]
@@ -109,14 +125,31 @@ for command in server_commands:
     print(output)
     time.sleep(5)
 
-input(f"The 5G system is up at {server_name}! \n Press Enter to continue...")
+input(f"The 5G system is up at {server_name}! \nPress Enter to continue...")
+
+# Initialize slices_dl.txt, slice_bws_ul.txt, state_dl.txt, state_ul.txt and UEs_per_slice.txt
+ues_per_slice_filepath = configs_5G_folder + '/UEs_per_slice.txt'
+bws_dl_filepath = configs_5G_folder + '/slice_bws_dl.txt'
+bws_ul_filepath = configs_5G_folder + '/slice_bws_ul.txt'
+state_dl_filepath = configs_5G_folder + '/state_dl.txt'
+state_ul_filepath = configs_5G_folder + '/state_ul.txt'
+reset_5G_commands = [f"echo {UEs_per_slice_string} >| {ues_per_slice_filepath}", f"echo {initial_bws_string} >| {bws_dl_filepath}", f"echo {initial_bws_string} >| {bws_ul_filepath}"]
+
+for command in reset_5G_commands:
+    print(f"({server_name}) Issuing command:\n {command}")
+    stdin, stdout, stderr = server_ssh.exec_command(command, get_pty=True)
+    output = stdout.read().decode('utf-8')
+    print(output)
+    
+input(f"The initial values for the 5G txt files are set! \nPress Enter to continue...")
+
 
 # Connect the UEs to the 5G system
 
 # Their order of connection needs to be correct since their uid is incremental
 # So first we need to start all the UEs of the first slice, then all the UEs of the second slice, then all the UEs of the third slice and so on...
 # This is necessary since OAI does not expose the NSSAI values of a UE at the MAC layer so we cannot assoicate UEs to a slice only based on their UID
-turn_on_quectel_command = f"cd {bash_folder} \n sudo ./start_quectel.sh"
+turn_on_quectel_command = f"cd {bash_folder} \nsudo ./start_quectel.sh"
 for slice in experiment_setup.keys():
     print(slice)
     if slice == 'server':
@@ -129,14 +162,13 @@ for slice in experiment_setup.keys():
         stdin, stdout, stderr = ue_ssh_client.exec_command(turn_on_quectel_command, get_pty=True)
         output = stdout.read().decode('utf-8')
         print(output)
-        time.sleep(5)
+        time.sleep(10)
 
-input(f"The quectel modules are on and the UEs have connected to the 5G system! \n Press Enter to continue...")
+input(f"The quectel modules are on and the UEs have connected to the 5G system! \nPress Enter to continue...")
 
 
 # Stop all procedures on each host
-bash_folder = f"~/{experiment_folder}/network-bash-scripts"
-stop_commands = [f"cd {bash_folder} \n sudo ./stop_clients.sh", f"cd {bash_folder} \n sudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh"]
+stop_commands = [f"cd {bash_folder} \n sudo ./stop_clients.sh", f"cd {bash_folder} \nsudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh"]
 for host_name in all_hosts:
     print(f'Stopping processes in host {host_name}')
     ssh_client = ssh_client_dic[host_name]
@@ -145,6 +177,14 @@ for host_name in all_hosts:
         stdin, stdout, stderr = ssh_client.exec_command(command, get_pty=True)
         output = stdout.read().decode('utf-8')
         print(output)
+
+# Reset slices_dl.txt, slice_bws_ul.txt, state_dl.txt, state_ul.txt and UEs_per_slice.txt
+ues_per_slice_filepath = configs_5G_folder + '/UEs_per_slice.txt'
+bws_dl_filepath = configs_5G_folder + '/slice_bws_dl.txt'
+bws_ul_filepath = configs_5G_folder + '/slice_bws_ul.txt'
+state_dl_filepath = configs_5G_folder + '/state_dl.txt'
+state_ul_filepath = configs_5G_folder + '/state_ul.txt'
+reset_5G_commands = [f"echo 999 0 >| {ues_per_slice_filepath}", f"echo 106 0 >| {bws_dl_filepath}", f"echo 106 0 >| {bws_ul_filepath}"]
 
 # End all ssh_clients
 for host_name in all_hosts:
