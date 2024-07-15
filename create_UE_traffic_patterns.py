@@ -38,7 +38,6 @@ def create_UE_traffic(host_name, flow_type, N, T):
     # Create directory if it doesn't exist
     parent_dir = os.path.dirname(os.getcwd())
     plots_dir = os.path.join(parent_dir, "plots")
-    print(plots_dir)
     if not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
 
@@ -57,7 +56,7 @@ def create_UE_traffic(host_name, flow_type, N, T):
     plt.grid(True)
     plt.tight_layout()
 
-    # Save the plot as JPG in the plots folder
+    # Save the plot as PDF in the plots folder
     plt.savefig(os.path.join(plots_dir, f'{host_name}_flow_status.pdf'), dpi=300)  # Adjust dpi as needed
     plt.close()
 
@@ -65,7 +64,7 @@ def create_UE_traffic(host_name, flow_type, N, T):
     total_active_users = np.sum(user_status, axis=0)
 
     plt.figure(figsize=(15, 6))
-    plt.plot(range(T), total_active_users, marker='o')
+    plt.step(range(T), total_active_users)
     plt.xlabel('Time')
     plt.ylabel('Number of Active Flows')
     plt.title(f'{host_name} -- {flow_type}')
@@ -73,7 +72,7 @@ def create_UE_traffic(host_name, flow_type, N, T):
     plt.grid(True)
     plt.tight_layout()
 
-    # Save the plot as JPG in the plots folder
+    # Save the plot as PDF in the plots folder
     plt.savefig(os.path.join(plots_dir, f'{host_name}_total_active_flows.pdf'), dpi=300)  # Adjust dpi as needed
     plt.close()
 
@@ -87,9 +86,10 @@ def create_UE_traffic(host_name, flow_type, N, T):
         if count > 0:
             print(f"{num_users} active users occurred {count} times, i.e., {round(100*count/total_counts, 2)} fraction of time")
     
-    print(user_status)
+    source_times_durations = find_consecutive_ones(user_status)
 
-    return user_status
+
+    return user_status, source_times_durations, total_active_users
 
 def find_consecutive_ones(array):
     new_list = []
@@ -113,6 +113,5 @@ def find_consecutive_ones(array):
     return new_list
 
 if __name__ == '__main__':
-    user_status = create_UE_traffic('kallepooc', 'OpenRTiST', 5, 1500)
-    source_times_durations = find_consecutive_ones(user_status)
+    user_status,  source_times_durations = create_UE_traffic('kallepooc', 'OpenRTiST', 5, 1500)
     print(source_times_durations)
