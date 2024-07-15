@@ -27,14 +27,8 @@ def create_UE_traffic(host_name, flow_type, N, T):
         time = 0
         while time < T:
 
-            if 'OpenRTiST' in flow_type:
-                on_time = np.random.exponential(mean_on_time)
-                off_time = np.random.exponential(mean_off_time)
-
-            if 'iperf3' in flow_type:
-                on_time = np.random.exponential(mean_on_time)
-                off_time = np.random.exponential(mean_off_time)
-
+            on_time = np.random.exponential(mean_on_time)
+            off_time = np.random.exponential(mean_off_time)
             
             if time + int(on_time) < T:
                 user_status[user, int(time):int(time + on_time)] = 1
@@ -97,6 +91,28 @@ def create_UE_traffic(host_name, flow_type, N, T):
 
     return user_status
 
-if __name__ == '__main__':
-    create_UE_traffic('kallepooc', 'OpenRTiST', 2, 1500)
+def find_consecutive_ones(array):
+    new_list = []
+    for arr in array:
+        result = []
+        start = None
 
+        for i, num in enumerate(arr):
+            if num == 1:
+                if start is None:
+                    start = i
+            else:
+                if start is not None:
+                    result.append((start, i - start))
+                    start = None
+
+        # Check if the last sequence of 1s goes to the end of the list
+        if start is not None:
+            result.append((start, len(arr) - start))
+        new_list.append(result)
+    return new_list
+
+if __name__ == '__main__':
+    user_status = create_UE_traffic('kallepooc', 'OpenRTiST', 5, 1500)
+    source_times_durations = find_consecutive_ones(user_status)
+    print(source_times_durations)
