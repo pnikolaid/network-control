@@ -115,3 +115,6 @@ iperf3_DL_mean_on_time = 120
 iperf3_DL_mean_off_time = 240
 iperf3_UL_mean_on_time = 120
 iperf3_UL_mean_off_time = 240
+
+iperf3_DL_rate = "1M"
+iperf3_UL_rate = '0.8M'

@@ -1,4 +1,4 @@
-from parameters import hosts, all_hosts, bash_folder, experiment_setup, configs_5G_folder, initial_bws_string, UEs_per_slice_string, experiment_duration, experiment_folder
+from parameters import hosts, all_hosts, bash_folder, experiment_setup, configs_5G_folder, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate
 from download_QoS_files import create_ssh_client
 from get_server_used_ports import get_used_ports
 from create_UE_traffic_patterns import create_UE_traffic
@@ -99,17 +99,6 @@ for slice in experiment_setup:
 
         traffic_data[host_name] = (host_flow_type, ports_used_by_ue, flow_times_durations)
 
-print(traffic_data)
-        
-for host_name in traffic_data.keys():
-    for triple_tuple in traffic_data[host_name]:
-        slice = triple_tuple[0]
-
-
-
-
-
-
 for slice_type in total_flow_activity.keys():
     plt.figure(figsize=(15, 6))
     plt.step(list(range(experiment_duration)), list(total_flow_activity[slice_type][0]))
@@ -123,6 +112,46 @@ for slice_type in total_flow_activity.keys():
     # Save the plot as PDF in the plots folder
     plt.savefig(plots_dir + f'/gNB_{slice_type}_total_active_flows.pdf', dpi=300)  # Adjust dpi as needed
     plt.close()
+
+traffic_command_info = []
+for host_name in traffic_data.keys():
+    triple_tuple = traffic_data[host_name]
+    slice = triple_tuple[0]
+    ports = triple_tuple[1]
+    flow_info = triple_tuple[2]
+    for count, flow in enumerate(flow_info):
+        port = ports[count]
+        for double_tuple in flow:
+            start_time = double_tuple[0]
+            duration = double_tuple[1]
+            command_info = [start_time, duration, host_name, slice, port]
+            traffic_command_info.append(command_info)
+
+traffic_command_info.sort()
+
+traffic_commands = []
+for info in traffic_command_info:
+    start_time = info[0]
+    duration = info[1]
+    host_name = info[2]
+    slice = info[3]
+    port = info[4]
+    for slice_type in total_flow_activity.keys():
+        if slice_type in slice:
+            break;
+    if slice_type == 'OpenRTiST':
+        script_name = 'start_openrtist_client.sh'
+        command = f"./{script_name} {port} {duration}"
+    elif slice_type == 'iperf3_DL':
+        script_name = 'start_iperf3_client_dl.sh'
+        command = f"./{script_name} {port} {duration} {iperf3_DL_rate}"
+    elif slice_type == 'iperf3_UL':
+        script_name = 'start_iperf3_client_ul.sh'
+        command = f"./{script_name} {port} {duration} {iperf3_UL_rate}"
+    traffic_commands.append([start_time, host_name, command])
+
+for command in traffic_commands:
+    print(command)
 
 input("Traffic patterns created! \nPress Enter to continue...")
 
