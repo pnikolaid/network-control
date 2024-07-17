@@ -30,10 +30,13 @@ def create_UE_traffic(host_name, flow_type, N, T):
             on_time = np.random.exponential(mean_on_time)
             off_time = np.random.exponential(mean_off_time)
             
-            if time + int(on_time) < T:
-                user_status[user, int(time):int(time + on_time)] = 1
+            time += int(off_time)
             
-            time += int(on_time + off_time)
+            end_time = min(int(time + on_time), T)
+            if time + int(on_time) < T:
+                user_status[user, int(time):int(end_time)] = 1
+            
+            time += int(on_time)
 
     # Create directory if it doesn't exist
     parent_dir = os.path.dirname(os.getcwd())

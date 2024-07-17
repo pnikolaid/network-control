@@ -5,8 +5,7 @@ from collections import defaultdict
 import numpy as np
 import concurrent.futures
 import re
-
-from parameters import local_path
+from parameters import QoS_folder, experiment_setup
 
 def list_files_in_directory(folder):
     """Return a list of filenames in the given directory."""
@@ -49,7 +48,9 @@ def print_timestamp_dict():
                 print(f"\t{seq_num}:{timestamps[port][seq_num]}")
 
 def compute_delays(timestamps_dict):
-    errors  = 0
+    incomplete = 0
+    lost = 0
+    negative = 0
     frames = 0
     delays_ul = []
     delays_edge = []
@@ -57,16 +58,13 @@ def compute_delays(timestamps_dict):
     delays_e2e = []
     for port in timestamps_dict:
         for seq_num in timestamps_dict[port]:
-            times = timestamps_dict[port][seq_num]
             frames += 1
+            times = timestamps_dict[port][seq_num]
 
             if -1 in times:
-                print()
-                print("Ignoring frame that does not have all timestamps...")
-                frame_id = (port, seq_num)
-                print(f"{frame_id}: {times}")
-                print()
-                errors += 1
+                incomplete += 1
+                if times[0] != -1 and times[3] == -1:
+                    lost += 1
                 continue
 
             delay_ul = (times[1] - times[0]) / 1e6
@@ -80,7 +78,7 @@ def compute_delays(timestamps_dict):
                 print(f"timestamps: {times}")
                 print(f"Delays: {[delay_ul, delay_edge, delay_dl, delay_e2e]}")
                 print()
-                errors += 1
+                negative += 1
                 continue
 
             delays_ul.append(delay_ul)
@@ -88,8 +86,14 @@ def compute_delays(timestamps_dict):
             delays_dl.append(delay_dl)
             delays_e2e.append(delay_e2e)
 
-    error_perc = round(100* errors/frames, 2)
-    print(f"Percentage of erroneous frames: {error_perc}%")
+    lost_perc = round(100* lost/frames, 2)
+    negative_perc = round(100* negative/frames, 2)
+    incomplete_perc = round(100* incomplete/frames, 2)
+
+    print(f"Percentage of lost frames: {lost_perc}%")
+    print(f"Percentage of negative frames: {negative_perc}%")
+    print(f"Percentage of incomplete frames: {incomplete_perc}%")
+
     return delays_ul, delays_edge, delays_dl, delays_e2e
 
 def compute_statistics(delays):
@@ -175,6 +179,9 @@ def parse_iperf_files(folder, filename):
                     # Add the value to the the right iperf dictionary
                     if port not in results:
                         results[port] = []
+                    if bitrate_value > 1000:
+                        print(bitrate_value)
+                        continue
                     results[port].append(bitrate_value)
 
 def compute_iperf_stats(stats):
@@ -185,12 +192,10 @@ def compute_iperf_stats(stats):
     return results
 
 def parse_file(file_name):
-    if "feanor" in file_name or "finarfin" in file_name:
-        print(f"Parsing {file_name}")
-        if "timestamps" in file_name:
-            parse_timestamp_file(directory, file_name)
-        elif "iperf3" in file_name:
-            parse_iperf_files(directory, file_name)
+    if "timestamps" in file_name:
+        parse_timestamp_file(directory, file_name)
+    elif "iperf3" in file_name:
+        parse_iperf_files(directory, file_name)
 
 def perform_in_parallel(function, f_inputs):
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -205,86 +210,98 @@ def perform_in_parallel(function, f_inputs):
 
 
 # Create a dictionary to store timestamps: port -> sequence number -> timestamp x 4 (flows are differentiated based on the port that each OpenRTiST server uses)
-directory = local_path
+directory = QoS_folder
 filenames = list_files_in_directory(directory)
 
-
-timestamps = defaultdict(lambda: defaultdict(lambda: [-1, -1, -1, -1]))
-iperf_dl = {}
-iperf_ul = {}
-
 show_timestamps = False
-show_stats = True
+show_stats = False
 
 show_iperf_dict = False
-show_iperf_results = True
+show_iperf_results = False
 
 # Run the main function
 if __name__ == "__main__":
 
     start_time = time.time_ns()
 
-
+    results = {}
     # Parse files to fill up timestamps and iperf dictionaries
-    """
-    for name in filenames:
-        if "feanor" in name or "finarfin" in name:
-            print(f"Parsing {name}")
-            if "timestamps" in name:
-                parse_timestamp_file(directory, name)
-            elif "iperf3" in name:
-                parse_iperf_files(directory, name)
-    """
-    
-    perform_in_parallel(parse_file, filenames)
-
-    # Compute timestamp statistics
-    if show_timestamps:
-        print_timestamp_dict(timestamps)
-
-    delay_hops = [[], [], [], []]
-    name_hops = ["UL", "EDGE", "DL", "E2E"]
-    delay_hops[0], delay_hops[1], delay_hops[2], delay_hops[3] = compute_delays(timestamps)
-
-    print("")
-
-    all_stats = {}
-    for k, vector in enumerate(delay_hops):
-        statistics = compute_statistics(vector)
-        all_stats[name_hops[k]] = statistics
-
-
-    if show_stats:
-        print_stats_dict(all_stats)
-
-
-    # Compute iperf3 statistics
-    if show_iperf_dict:
-        print("Iperf3 DL bitrates (Mbps):")
-        for key in iperf_dl:
-            print(f'{key}: {iperf_dl[key]}')
-        print()
-
-        print("Iperf3 UL bitrates (Mbps):")
-        for key in iperf_ul:
-            print(f'{key}: {iperf_ul[key]}')
-        print()
-    
-    iperf_dl_results = compute_iperf_stats(iperf_dl)
-    iperf_ul_results = compute_iperf_stats(iperf_ul)
+    servername = experiment_setup['server'][0][0]
+    for slice_name in experiment_setup.keys():
+        print(f"Processing slice {slice_name}...")
+        timestamps = defaultdict(lambda: defaultdict(lambda: [-1, -1, -1, -1]))
+        iperf_dl = {}
+        iperf_ul = {}
+        if slice_name == 'server': continue
+        if 'OpenRTiST' in slice_name:
+            identifier = 'timestamps'
+        elif 'iperf3_DL' in slice_name:
+            identifier = 'iperf3_dl'
+        elif 'iperf3_UL' in slice_name:
+            identifier = 'iperf3_ul'
         
-    if show_iperf_results:
-        print("Iperf3 DL mean bitrate (Mbps):")
-        for key in iperf_dl_results:
-            print(f'{key}: {iperf_dl_results[key]}')
-        print()
-        
-        print("Iperf3 UL mean bitrate (Mbps):")
-        for key in iperf_ul_results:
-            print(f'{key}: {iperf_ul_results[key]}')
-        print()
-    
+        slice_hostnames = [servername] + [host_tuple[0] for host_tuple in experiment_setup[slice_name]]
+        slice_filenames = []
+        for filename in filenames:
+            if identifier in filename and any(slice_host in filename for slice_host in slice_hostnames):
+                slice_filenames.append(filename)
+
+        perform_in_parallel(parse_file, slice_filenames)
+
+        # Compute timestamp statistics
+        if identifier == 'timestamps':
+            if show_timestamps:
+                print_timestamp_dict(timestamps)
+
+            delay_hops = [[], [], [], []]
+            name_hops = ["UL", "EDGE", "DL", "E2E"]
+            delay_hops[0], delay_hops[1], delay_hops[2], delay_hops[3] = compute_delays(timestamps)
+
+            print("")
+
+            all_stats = {}
+            for k, vector in enumerate(delay_hops):
+                statistics = compute_statistics(vector)
+                all_stats[name_hops[k]] = statistics
+
+
+            results[slice_name] = all_stats
+            if show_stats:
+                print_stats_dict(all_stats)
+
+
+        # Compute iperf3 statistics
+        if identifier == 'iperf3_dl':
+            if show_iperf_dict:
+                print("Iperf3 DL bitrates (Mbps):")
+                for key in iperf_dl:
+                    print(f'{key}: {iperf_dl[key]}')
+                print()
             
+            iperf_dl_results = compute_iperf_stats(iperf_dl)
+
+            if show_iperf_results:
+                print("Iperf3 DL mean bitrate (Mbps):")
+                for key in iperf_dl_results:
+                    print(f'{key}: {iperf_dl_results[key]}')
+                print()
+            results[slice_name] = iperf_dl_results
+            
+        if identifier == 'iperf3_ul':
+            if show_iperf_dict:
+                print("Iperf3 UL bitrates (Mbps):")
+                for key in iperf_ul:
+                    print(f'{key}: {iperf_ul[key]}')
+                print()
+                
+            iperf_ul_results = compute_iperf_stats(iperf_ul)
+
+            if show_iperf_results:
+                print("Iperf3 UL mean bitrate (Mbps):")
+                for key in iperf_ul_results:
+                    print(f'{key}: {iperf_ul_results[key]}')
+                print()
+            results[slice_name] = iperf_ul_results
 
     end_time = time.time_ns()
     print(f"Execution time: {(end_time - start_time)/1e6} ms")
