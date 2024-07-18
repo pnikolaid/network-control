@@ -214,10 +214,10 @@ directory = QoS_folder
 filenames = list_files_in_directory(directory)
 
 show_timestamps = False
-show_stats = True
+show_stats = False
 
 show_iperf_dict = False
-show_iperf_results = True
+show_iperf_results = False
 
 # Run the main function
 if __name__ == "__main__":
