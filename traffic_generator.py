@@ -162,7 +162,7 @@ for command in traffic_commands:
 print("Traffic patterns and traffic commands created!")
 
 # Stop all procedures on each host
-stop_commands = [f"cd {bash_folder}\n sudo ./stop_clients.sh", f"cd {bash_folder} \n sudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh", f"cd {bash_folder} \n ./cleanup_logs.sh"]
+stop_commands = [f"cd {bash_folder}\n sudo ./stop_clients.sh", f"cd {bash_folder} \n sudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh", f"cd {bash_folder} \n ./cleanup_logs.sh", f"cd {bash_folder} \n ./delete_command_outputs.sh" ]
 for host_name in all_hosts:
     print(f'Stopping processes in host {host_name}\n')
     ssh_client = ssh_client_dic[host_name]
@@ -188,10 +188,10 @@ for command in reset_5G_commands:
     output = stdout.read().decode('utf-8')
     print(output)
     
-print(f"Files in 5G-configs-logs reseted and state_dl.txt and state_ul.txt cleared!")
+print(f"Files in 5G-configs-logs reseted and state_dl.txt and state_ul.txt, command outputs cleared!")
 
 # Create OpenRTiST and iperf3 servers on the server host
-openrtist_server_commands = [f"cd {bash_folder} \n ./start_openrtist_server.sh {port}" for port in original_ports_dict['OpenRTiST']]
+openrtist_server_commands = [f"cd {bash_folder} \n sudo ./start_openrtist_server.sh {port}" for port in original_ports_dict['OpenRTiST']]
 iperf3_server_DL_commands = [f"cd {bash_folder} \n ./start_iperf3_server_dl.sh {port}" for port in original_ports_dict['iperf3_DL']]
 iperf3_server_UL_commands = [f"cd {bash_folder} \n ./start_iperf3_server_ul.sh {port}" for port in original_ports_dict['iperf3_UL']]
 
@@ -209,7 +209,7 @@ print(f"All required iperf3 and OpenRTiST servers are up at {server_name}!")
 
 # Start 5G system
 start_CN_command= [f"cd {bash_folder} \n sudo ./start_5G_CN.sh"]
-start_gNB_command = [f"cd {bash_folder} \n ./start_5G_gNB.sh"]
+start_gNB_command = [f"cd {bash_folder} \n sudo ./start_5G_gNB.sh"]
 
 server_commands = start_CN_command + start_gNB_command
 print(f"Starting servers at {experiment_setup['server'][0][0]}")
@@ -283,7 +283,6 @@ try:
                 host_name = command[1]
                 ue_ssh_client = ssh_client_dic[host_name]
                 stdin, stdout, stderr = ue_ssh_client.exec_command(command[2], get_pty=True)
-                output = stdout.read().decode('utf-8')
                 output = stdout.read().decode('utf-8')
                 print(output)
                 
