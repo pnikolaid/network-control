@@ -1,5 +1,6 @@
 import paramiko
 from scp import SCPClient
+import glob
 import os
 import concurrent.futures
 import time
@@ -67,6 +68,10 @@ def perform_in_parallel(function, f_inputs):
                 print(f"Input {input_value} generated an exception: {exc}")
 
 def main():
+    # emtpy QoS folder 
+    files = glob.glob(f'{QoS_folder}/*')
+    for f in files:
+        os.remove(f)
     perform_in_parallel(process_host, hosts)
    
 if __name__ == '__main__':

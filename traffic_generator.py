@@ -1,4 +1,4 @@
-from parameters import hosts, all_hosts, bash_folder, experiment_setup, configs_5G_folder, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate
+from parameters import hosts, all_hosts, bash_folder, experiment_setup, configs_5G_folder, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder
 from download_QoS_files import create_ssh_client, process_host_scp_created, perform_in_parallel
 from scp import SCPClient
 from get_server_used_ports import get_used_ports
@@ -9,6 +9,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import copy
+import glob
 
 # Establish ssh and scp clients for all hosts
 ssh_client_dic = {}
@@ -76,13 +77,18 @@ ports_dict = {'OpenRTiST': openrtist_ports, 'iperf3_DL': iperf3_DL_ports, 'iperf
 original_ports_dict = copy.deepcopy(ports_dict)
 
 # Create Traffic Scenario on Each UE
+parent_dir = os.path.dirname(os.getcwd())
+plots_dir = os.path.join(parent_dir, "plots")
+files = glob.glob(f'{plots_dir}/*')
+for f in files:
+    os.remove(f)
+
 traffic_data = {}
 total_flow_activity = {'OpenRTiST': np.zeros((1, experiment_duration)), 'iperf3_DL': np.zeros((1, experiment_duration)), 'iperf3_UL': np.zeros((1, experiment_duration))}
 openrtist_total_flows = np.zeros((1, experiment_duration))
 iperf3_DL_total_flows = np.zeros((1, experiment_duration))
 iperf3_UL_total_flows = np.zeros((1, experiment_duration))
-parent_dir = os.path.dirname(os.getcwd())
-plots_dir = os.path.join(parent_dir, "plots")
+
 
 for slice in experiment_setup:
     if slice == 'server':
@@ -161,8 +167,13 @@ for command in traffic_commands:
 
 print("Traffic patterns and traffic commands created!")
 
+# Clear QoS folder
+files = glob.glob(f'{QoS_folder}/*')
+for f in files:
+    os.remove(f)
+
 # Stop all procedures on each host
-stop_commands = [f"cd {bash_folder}\n sudo ./stop_clients.sh", f"cd {bash_folder} \n sudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh", f"cd {bash_folder} \n ./cleanup_logs.sh"]
+stop_commands = [f"cd {bash_folder}\n sudo ./stop_clients.sh", f"cd {bash_folder} \n sudo ./stop_servers.sh", f"cd {bash_folder} \n sudo ./stop_5G.sh", f"cd {bash_folder} \n sudo ./stop_quectel.sh", f"cd {bash_folder} \n yes | ./delete_iperf3_logs.sh", f"cd {bash_folder} \n ./cleanup_logs.sh"]
 for host_name in all_hosts:
     print(f'Stopping processes in host {host_name}\n')
     ssh_client = ssh_client_dic[host_name]
@@ -218,7 +229,7 @@ for command in server_commands:
     stdin, stdout, stderr = server_ssh.exec_command(command, get_pty=True)
     output = stdout.read().decode('utf-8')
     print(output)
-    time.sleep(5)
+    time.sleep(30)
 
 print(f"The 5G system is up at {server_name}!")
 
@@ -269,7 +280,8 @@ experiment_end_time = experiment_start_time + experiment_duration + 10
 current_time = experiment_start_time
 commands_issued = 0
 readable_start_time = datetime.now().strftime("%H:%M:%S")
-print(f"({readable_start_time})")
+print(f"Experiment duration: {experiment_duration}s")
+print(f"({readable_start_time} -> 0s)")
 try:
     while current_time <= experiment_end_time :
         current_time = time.time()
@@ -282,14 +294,15 @@ try:
                 # The command needs to be issued ASAP
                 host_name = command[1]
                 ue_ssh_client = ssh_client_dic[host_name]
-                stdin, stdout, stderr = ue_ssh_client.exec_command(command[2], get_pty=True)
-                output = stdout.read().decode('utf-8')
-                output = stdout.read().decode('utf-8')
-                print(output)
+                stdin, stdout, stderr = ue_ssh_client.exec_command(command[2], get_pty=False)
+                # stdout.channel.set_combine_stderr(True)
+                # output = stdout.read().decode('utf-8')
+                # print(f"output: {output}")
                 
                 short_command = command[2].split('\n', 1)[1].strip()
                 readable_time = datetime.now().strftime("%H:%M:%S")
-                print(f"({host_name} {readable_time}): {short_command}")
+                elapsed_time_3digits = "{:.3f}".format(elapsed_time)
+                print(f"({host_name} {readable_time} -> {elapsed_time_3digits}s vs {command[0]}s): {short_command}")
 
                 commands_issued += 1
         
@@ -297,6 +310,7 @@ try:
 except KeyboardInterrupt:
         print("Experiment stopped by user!")
 
+print(f"Desired and actual experiment time: {experiment_duration}s vs {time.time()-experiment_start_time}s")
 
 # Download QoS files
 download_tuple_list = []
@@ -336,6 +350,4 @@ for host_name in all_hosts:
     scp_client.close()
     ssh_client.close()
 
-print("Experiment has ended!")
-
-
+print("Script has ended!")

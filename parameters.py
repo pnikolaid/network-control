@@ -83,7 +83,7 @@ hosts = copy.deepcopy(all_hosts)
 
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
-experiment_setup = {'server': [('finarfin',)], 'OpenRTiST-1': [('feanor', 1)], 'OpenRTiST-2': [('fingolfin', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
+experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts

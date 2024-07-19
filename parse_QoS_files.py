@@ -73,11 +73,11 @@ def compute_delays(timestamps_dict):
             delay_e2e = (times[3] - times[0]) / 1e6
 
             if delay_ul < 0 or delay_edge < 0 or delay_dl < 0 or delay_e2e <0:
-                print()
-                print("Ignoring frame that has negative delays...")
-                print(f"timestamps: {times}")
-                print(f"Delays: {[delay_ul, delay_edge, delay_dl, delay_e2e]}")
-                print()
+                # print()
+                # print("Ignoring frame that has negative delays...")
+                # print(f"timestamps: {times}")
+                # print(f"Delays: {[delay_ul, delay_edge, delay_dl, delay_e2e]}")
+                # print()
                 negative += 1
                 continue
 
@@ -214,10 +214,10 @@ directory = QoS_folder
 filenames = list_files_in_directory(directory)
 
 show_timestamps = False
-show_stats = False
+show_stats = True
 
 show_iperf_dict = False
-show_iperf_results = False
+show_iperf_results = True
 
 # Run the main function
 if __name__ == "__main__":
@@ -228,11 +228,11 @@ if __name__ == "__main__":
     # Parse files to fill up timestamps and iperf dictionaries
     servername = experiment_setup['server'][0][0]
     for slice_name in experiment_setup.keys():
+        if slice_name == 'server': continue
         print(f"Processing slice {slice_name}...")
         timestamps = defaultdict(lambda: defaultdict(lambda: [-1, -1, -1, -1]))
         iperf_dl = {}
         iperf_ul = {}
-        if slice_name == 'server': continue
         if 'OpenRTiST' in slice_name:
             identifier = 'timestamps'
         elif 'iperf3_DL' in slice_name:
