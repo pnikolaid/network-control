@@ -10,6 +10,8 @@ import os
 import matplotlib.pyplot as plt
 import copy
 import glob
+import multiprocessing
+from network_control import network_control_function
 
 # Establish ssh and scp clients for all hosts
 ssh_client_dic = {}
@@ -21,6 +23,11 @@ for host_name in all_hosts:
     ssh_client_dic[host_name] = ssh_client
     scp_client = SCPClient(ssh_client.get_transport())
     scp_client_dic[host_name] = scp_client
+
+download_tuple_list = []
+for hostname in hosts.keys():
+    host_info = (hostname, ssh_client_dic[hostname], hosts[hostname]['remote_path'], scp_client_dic[hostname])
+    download_tuple_list.append(host_info)
 
 # Find server ports to be used
 server_name = experiment_setup['server'][0][0]
@@ -273,15 +280,22 @@ print(f"The quectel modules are on and the UEs have connected to the 5G system!"
 
 
 input(f"Setup is complete!! \nPress <Enter> to start the experiment...")
-# Generate Traffic by issuing the commands in traffic_commands = [start_time, host_name, command]
 
+# Define RL process to be run in parallel with traffic generator
+control_process = multiprocessing.Process(target=network_control_function)
+
+# Generate Traffic by issuing the commands in traffic_commands = [start_time, host_name, command]
 experiment_start_time = time.time()
-experiment_end_time = experiment_start_time + experiment_duration + 10
+experiment_end_time = experiment_start_time + experiment_duration
 current_time = experiment_start_time
 commands_issued = 0
 readable_start_time = datetime.now().strftime("%H:%M:%S")
 print(f"Experiment duration: {experiment_duration}s")
 print(f"({readable_start_time} -> 0s)")
+
+# Start RL process
+control_process.start()
+
 try:
     while current_time <= experiment_end_time :
         current_time = time.time()
@@ -311,13 +325,10 @@ except KeyboardInterrupt:
         print("Experiment stopped by user!")
 
 print(f"Desired and actual experiment time: {experiment_duration}s vs {time.time()-experiment_start_time}s")
+control_process.terminate()
+control_process.join()
 
 # Download QoS files
-download_tuple_list = []
-for hostname in hosts.keys():
-    host_info = (hostname, ssh_client_dic[hostname], hosts[hostname]['remote_path'], scp_client_dic[hostname])
-    download_tuple_list.append(host_info)
-
 t0 = time.time_ns()
 perform_in_parallel(process_host_scp_created, download_tuple_list)
 t1 = time.time_ns()
