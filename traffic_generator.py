@@ -279,10 +279,20 @@ for slice in experiment_setup.keys():
 print(f"The quectel modules are on and the UEs have connected to the 5G system!")
 
 
-input(f"Setup is complete!! \nPress <Enter> to start the experiment...")
+
+# Establish pipe between the parent traffic generator process and the child process called network controls 
+traffic_end, control_end = multiprocessing.Pipe()
 
 # Define RL process to be run in parallel with traffic generator
-control_process = multiprocessing.Process(target=network_control_function)
+control_process = multiprocessing.Process(target=network_control_function, args=(control_end,))
+
+# Start RL process
+control_process.start()
+message = traffic_end.recv()
+print(message)
+
+input(f"Setup is complete!! \nPress <Enter> to start the experiment...")
+
 
 # Generate Traffic by issuing the commands in traffic_commands = [start_time, host_name, command]
 experiment_start_time = time.time()
@@ -293,8 +303,7 @@ readable_start_time = datetime.now().strftime("%H:%M:%S")
 print(f"Experiment duration: {experiment_duration}s")
 print(f"({readable_start_time} -> 0s)")
 
-# Start RL process
-control_process.start()
+traffic_end.send("Experiment started!") # notify control process to start the while control loop
 
 try:
     while current_time <= experiment_end_time :
@@ -303,7 +312,7 @@ try:
         for command in traffic_commands[commands_issued:]:
             if elapsed_time < command[0]:
                 # Next command starts in the future
-                break;
+                break
             else:
                 # The command needs to be issued ASAP
                 host_name = command[1]
@@ -324,9 +333,9 @@ try:
 except KeyboardInterrupt:
         print("Experiment stopped by user!")
 
-print(f"Desired and actual experiment time: {experiment_duration}s vs {time.time()-experiment_start_time}s")
-control_process.terminate()
+traffic_end.send("Experiment ended!")
 control_process.join()
+print(f"Desired and actual experiment time: {experiment_duration}s vs {time.time()-experiment_start_time}s")
 
 # Download QoS files
 t0 = time.time_ns()

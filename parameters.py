@@ -90,7 +90,9 @@ UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() i
 multiple_openrtist_servers = True
 
 # Experiment Parameters
-experiment_duration = 600
+experiment_duration = 3600
+
+
 initial_bws = [int(106*x/sum(UEs_per_slice)) for x in UEs_per_slice]
 leftover_bw = max(106 - sum(initial_bws), 0)
 initial_bws[0] += leftover_bw
