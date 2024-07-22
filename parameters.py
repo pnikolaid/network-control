@@ -101,6 +101,11 @@ UEs_per_slice_string = ''
 for x in UEs_per_slice:
     UEs_per_slice_string += f"{x} "
 
+slicenames = []
+for slicename in experiment_setup.keys():
+    if slicename == 'server': continue
+    slicenames.append(slicename)
+
 initial_bws_string = ''
 for x in initial_bws:
     initial_bws_string += f"{x} "

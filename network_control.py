@@ -42,6 +42,9 @@ def network_control_function(pipe):
 
     # cleanup 5G states
     server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
+
+    # Online Control Loop!
+
     while True:
         try:
             # check if experiment has ended
@@ -83,6 +86,9 @@ def network_control_function(pipe):
             QoS_results = parse_QoS_function_main()
             t5 = time.time_ns()
             print(f"[Network-control] Parse QoS time: {(t5-t4)/1e6}ms")
+
+
+            
         except KeyboardInterrupt:
             print("[Network-control] KeyboardInterrupt detected! Stopping control loop...")
             break # continue to another loop where so that the pipe reads the message "Experiment ended!" in order to gracefully terminate this script
