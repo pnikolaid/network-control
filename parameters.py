@@ -83,7 +83,8 @@ hosts = copy.deepcopy(all_hosts)
 
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
-experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
+# experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
+experiment_setup = {'server': [('finarfin',)], 'iperf3_DL': [('forlong', 2)] }
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
@@ -92,6 +93,10 @@ multiple_openrtist_servers = True
 # Experiment Parameters
 experiment_duration = 3600
 
+log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTiST repo, only for reference
+log_5G_state_period_in_ms = 10 * log_5G_state_period_in_frames
+
+symbols_per_subframe = 28 # depends on SCS, for SCS = 30 kHz there are 28 symbols per subframe (a subframe lasts always 1 ms)
 
 initial_bws = [int(106*x/sum(UEs_per_slice)) for x in UEs_per_slice]
 leftover_bw = max(106 - sum(initial_bws), 0)
@@ -118,7 +123,7 @@ iperf3_DL_mean_off_time = 240
 iperf3_UL_mean_on_time = 120
 iperf3_UL_mean_off_time = 240
 
-iperf3_DL_rate = "1M"
+iperf3_DL_rate = "2M"
 iperf3_UL_rate = '0.8M'
 
 # Network Control Parameters
