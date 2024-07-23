@@ -1,6 +1,6 @@
 import os
 import copy
-from parameters import UEs_per_slice, slicenames, log_5G_state_period_in_ms, symbols_per_subframe
+from parameters import UEs_per_slice, slicenames, log_5G_state_period_in_ms, symbols_per_subframe, TDD_slots_ratio
 import time
 import numpy as np
 from collections import defaultdict
@@ -113,11 +113,12 @@ def extract_state_metrics(data):
                 old_ue_bytes = ue_bytes
                 total_rate = (sum(rate_bytes) * 8) / (log_5G_state_period_in_ms * 1000) # in Mbps
 
-                bits_per_subframe = 8*rate_bytes/log_5G_state_period_in_ms # on average kB arriving every ms
+                bits_per_frame = 10 * 8 * rate_bytes/log_5G_state_period_in_ms # on average kB arriving every ms
 
                 # PRBs needed to match the arrival rate =  (some system constants that depends on 5G configuration)* PRB_factor (for each UE)
                 data_resources_perc = 1 - control_overheard_in_resources[hop] 
-                PRB_factors = bits_per_subframe / (old_spectral_efficiency * 12 * symbols_per_subframe * data_resources_perc) # based on TS 38.306 Sec. 4.1, we multiply by 28 since there are 28 symbols in 1 ms when SCS = 30 kHz
+                slots_perc = TDD_slots_ratio[hop]
+                PRB_factors = bits_per_frame / (old_spectral_efficiency * 12 * symbols_per_subframe * 10 * data_resources_perc * slots_perc) # based on TS 38.306 Sec. 4.1, we multiply by 28 since there are 28 symbols in 1 ms when SCS = 30 kHz
                 total_PRB_factor = sum(PRB_factors)  # total PRBs needed to match the slice's arrival rate = (the same unknown constant)*total_PRB_factor
 
 

@@ -97,6 +97,7 @@ log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTi
 log_5G_state_period_in_ms = 10 * log_5G_state_period_in_frames
 
 symbols_per_subframe = 28 # depends on SCS, for SCS = 30 kHz there are 28 symbols per subframe (a subframe lasts always 1 ms)
+TDD_slots_ratio = {'UL':3/5 + 0.6/5, "DL": 1/5 + 0.4/5} # depends on TDD frame structure found in custom-openairinterface5g/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf
 
 initial_bws = [int(106*x/sum(UEs_per_slice)) for x in UEs_per_slice]
 leftover_bw = max(106 - sum(initial_bws), 0)
