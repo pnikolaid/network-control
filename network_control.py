@@ -1,11 +1,13 @@
-from parameters import hosts, all_hosts, bash_folder, experiment_setup, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
-from scp import SCPClient
 from parse_QoS_files import parse_QoS_function_main
 from parse_state_files import parse_state_files_function
+
 import time
 import math
 import os
+import pickle
+from scp import SCPClient
 
 
 def combine_state_QoS(states, QoSs):
@@ -69,6 +71,10 @@ def resolve_contention(demands):
 parent_directory = os.path.dirname(os.getcwd())
 copies_folder = os.path.join(parent_directory, '5G-copies')
 os.makedirs(copies_folder, exist_ok=True)
+
+pickle_fileame = f"{experiment_identifier}.pkl"
+pickle_filepath = os.path.join(trajectories_folder, pickle_fileame)
+pickle_file = open(pickle_filepath,'ab')
 
 servername = experiment_setup["server"][0][0]
 server_username = hosts[servername]['username']
@@ -180,6 +186,8 @@ def network_control_function(pipe):
             server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}")
             print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
 
+            pickle.dump(state_and_QoS_list, pickle_file)
+
             # Sleep
             compute_overhead = (time.time_ns() - compute_start)/1e9
             print(f"[Network Control] Loop overhead is {round(compute_overhead,2)}s")
@@ -190,6 +198,8 @@ def network_control_function(pipe):
             print("[Network Control] KeyboardInterrupt detected! Stopping control loop...")
             break # continue to another loop where so that the pipe reads the message "Experiment ended!" in order to gracefully terminate this script
     
+    pickle_file.close()
+
     # End all scp and ssh clients
     for host_name in hosts:
         ssh_client = ssh_dic[host_name]

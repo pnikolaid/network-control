@@ -1,4 +1,6 @@
 import copy
+from datetime import datetime
+import os
 
 def keep_only_experiment_hosts(setup):
 
@@ -23,6 +25,10 @@ bash_folder = f"{experiment_folder}/network-bash-scripts"
 configs_5G_folder = f"{experiment_folder}/5G-configs-logs"
 plots_folder = f"{experiment_folder}/plots"
 QoS_folder = f"../QoS_files"  # contains filepath to QoS files in server
+
+parent_directory = os.path.dirname(os.getcwd())
+trajectories_folder = os.path.join(parent_directory, 'trajectories')
+os.makedirs(trajectories_folder, exist_ok=True)
 
 # gNB + CN + edge + RL algo
 finarfin = {
@@ -91,6 +97,8 @@ UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() i
 multiple_openrtist_servers = True
 
 # Experiment Parameters
+experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
+
 experiment_duration = 3600
 
 log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTiST repo, only for reference
