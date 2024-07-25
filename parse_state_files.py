@@ -76,7 +76,7 @@ def parse_per_slice(parsed_data):
     
     return slices_data
 
-def parse_state_files_function():
+def preprocess_state_files():
     dir_path= os.path.dirname(os.getcwd())
     filenames = ['state_ul.txt', 'state_dl.txt']  # Replace with your file path
     filepaths = [os.path.join(dir_path, '5G-copies', filename) for filename in filenames]
@@ -144,8 +144,8 @@ def extract_state_metrics(data):
             #print(rate_metrics)
             #print(PRB_factor_metrics)
             #print(queue_metrics)
-            state_metrics[hop][slice]["rate metrics"] = rate_metrics # mean, std, max
-            state_metrics[hop][slice]["PRB factor metrics"] = PRB_factor_metrics # mean, std, max
+            state_metrics[hop][slice]["arrival rate metrics"] = rate_metrics # mean, std, max
+            state_metrics[hop][slice]["PRB demand metrics"] = PRB_factor_metrics # mean, std, max
             state_metrics[hop][slice]["queue metrics"] = queue_metrics #nean, std, max, current
     # print(state_metrics)
 
@@ -159,11 +159,16 @@ def extract_state_metrics(data):
 
     return new_state_metrics
 
+def parse_state_files_function():
+    all_data = preprocess_state_files()
+    new_state_metrics = extract_state_metrics(all_data)
+    return new_state_metrics
+
+
 if __name__ == "__main__":
     t0 = time.time_ns()
-    all_data = parse_state_files_function()
-    new_state_metrics = extract_state_metrics(all_data)
-    print(new_state_metrics)
+    state_metrics = parse_state_files_function()
+    print(state_metrics)
     t1 = time.time_ns()
 
 

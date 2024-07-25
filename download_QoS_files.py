@@ -58,14 +58,17 @@ def process_host_scp_created(host_info):
     download_files_scp(scp_client, remote_path, QoS_folder, filenames, host_name)
 
 def perform_in_parallel(function, f_inputs):
+    output = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {executor.submit(function, f_input): f_input for f_input in f_inputs}
         for future in concurrent.futures.as_completed(futures):
             input_value = futures[future]
             try:
                 result = future.result()
+                output.append(result)
             except Exception as exc:
                 print(f"Input {input_value} generated an exception: {exc}")
+    return output
 
 def main():
     # emtpy QoS folder 

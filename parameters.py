@@ -124,8 +124,9 @@ iperf3_DL_mean_off_time = 240
 iperf3_UL_mean_on_time = 120
 iperf3_UL_mean_off_time = 240
 
-iperf3_DL_rate = "2M"
+iperf3_DL_rate = "4M"
 iperf3_UL_rate = '0.8M'
 
 # Network Control Parameters
 slot_length = 5 # in seconds
+bandwidth_demand_algorithm = "basic"

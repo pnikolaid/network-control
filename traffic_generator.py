@@ -301,7 +301,7 @@ current_time = experiment_start_time
 commands_issued = 0
 readable_start_time = datetime.now().strftime("%H:%M:%S")
 print(f"Experiment duration: {experiment_duration}s")
-print(f"({readable_start_time} -> 0s)")
+print(f"[Traffic Generator] ({readable_start_time} -> 0s)")
 
 traffic_end.send("Experiment started!") # notify control process to start the while control loop
 
@@ -325,7 +325,7 @@ try:
                 short_command = command[2].split('\n', 1)[1].strip()
                 readable_time = datetime.now().strftime("%H:%M:%S")
                 elapsed_time_3digits = "{:.3f}".format(elapsed_time)
-                print(f"({host_name} {readable_time} -> {elapsed_time_3digits}s vs {command[0]}s): {short_command}")
+                print(f"[Traffic Generator] ({host_name} {readable_time} -> {elapsed_time_3digits}s vs {command[0]}s): {short_command}")
 
                 commands_issued += 1
         

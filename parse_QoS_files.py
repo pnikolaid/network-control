@@ -226,10 +226,10 @@ directory = QoS_folder
 filenames = list_files_in_directory(directory)
 
 show_timestamps = False
-show_stats = True
+show_stats = False
 
 show_iperf_dict = False
-show_iperf_results = True
+show_iperf_results = False
 
 def parse_QoS_function_main():
     start_time = time.time_ns()
@@ -239,7 +239,6 @@ def parse_QoS_function_main():
     servername = experiment_setup['server'][0][0]
     for slice_name in experiment_setup.keys():
         if slice_name == 'server': continue
-        print(f"Processing slice {slice_name}...")
         timestamps = defaultdict(lambda: defaultdict(lambda: [-1, -1, -1, -1]))
         iperf_dl = {}
         iperf_ul = {}
@@ -267,7 +266,6 @@ def parse_QoS_function_main():
             name_hops = ["UL", "EDGE", "DL", "E2E"]
             delay_hops[0], delay_hops[1], delay_hops[2], delay_hops[3] = compute_delays(timestamps)
 
-            print("")
 
             all_stats = {}
             for k, vector in enumerate(delay_hops):
@@ -314,14 +312,14 @@ def parse_QoS_function_main():
             results[slice_name] = iperf_ul_results
 
     end_time = time.time_ns()
-    print(f"Execution time: {(end_time - start_time)/1e6} ms")
-
-    print(f"results: {results}")
 
     return results
 
 # Run the main function
 if __name__ == "__main__":
+
+    show_stats = True
+    show_iperf_results = True
 
     parse_QoS_function_main()
     exit()

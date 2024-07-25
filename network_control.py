@@ -1,9 +1,70 @@
-from parameters import hosts, all_hosts, bash_folder, experiment_setup, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder, slot_length
+from parameters import hosts, all_hosts, bash_folder, experiment_setup, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from scp import SCPClient
 from parse_QoS_files import parse_QoS_function_main
+from parse_state_files import parse_state_files_function
 import time
-import os 
+import math
+import os
+
+
+def combine_state_QoS(states, QoSs):
+    list_of_dics = []
+    for slicename in states.keys():
+        slice_dic = {}
+        slice_dic[slicename] = {"state": states[slicename], "QoS": QoSs[slicename]}
+        list_of_dics.append(slice_dic)
+    return list_of_dics
+
+def find_bandwidth_demand(combined_dic):
+    slicename = next(iter(combined_dic))
+
+    bw_dic = {}
+    bw_dic[slicename] = {}
+
+    state = combined_dic[slicename]["state"]
+    QoS = combined_dic[slicename]["QoS"]
+
+    if bandwidth_demand_algorithm == 'basic':
+        for hop in state.keys():
+            value = state[hop]["PRB demand metrics"][0]
+            demand = math.ceil(value)
+            bw_dic[slicename][hop] = demand
+    
+    return bw_dic
+
+def resolve_contention(demands):
+    ul_bws = []
+    dl_bws = []
+    for slice_demands in demands:
+        slicename = next(iter(slice_demands))
+        ul_bws.append(max(slice_demands[slicename]["UL"], 5))
+        dl_bws.append(max(slice_demands[slicename]["DL"], 5))
+
+    ul_alloc_bws = ul_bws
+    if sum(ul_bws) > 106:
+        ul_alloc_bws = [5] * len(demands)
+        remaining_PRBs = 106 - sum(ul_alloc_bws)
+        while remaining_PRBs:
+            demand = min(ul_bws)
+            argmin = ul_bws.index(min_demand)
+
+            ul_alloc_bws[argmin] += max(min(demand - ul_alloc_bws[argmin], remaining_PRBs), 0)
+            remaining_PRBs = 106 - sum(ul_alloc_bws)
+
+    dl_alloc_bws = dl_bws
+    if sum(dl_bws) > 106:
+        dl_alloc_bws = [5] * len(demands)
+        remaining_PRBs = 106 - sum(dl_alloc_bws)
+        while remaining_PRBs:
+            min_demand = min(dl_bws)
+            argmin = dl_bws.index(min_demand)
+
+            dl_alloc_bws[argmin] += max(min(min_demand - dl_alloc_bws[argmin], remaining_PRBs), 0)
+            remaining_PRBs = 106 - sum(dl_alloc_bws)
+    
+    return ul_alloc_bws, dl_alloc_bws
+
 
 parent_directory = os.path.dirname(os.getcwd())
 copies_folder = os.path.join(parent_directory, '5G-copies')
@@ -16,6 +77,9 @@ state_files = ["state_dl.txt", "state_ul.txt"]
 server_configs_5G_folder = f"/home/{server_username}/panos/5G-configs-logs"
 local_state_files = [os.path.join(copies_folder, x) for x in state_files]
 remote_state_files =[os.path.join(server_configs_5G_folder, x) for x in state_files]
+
+bws_ul_filepath = configs_5G_folder + '/slice_bws_ul.txt'
+bws_dl_filepath = configs_5G_folder + '/slice_bws_dl.txt'
 
 def network_control_function(pipe):
 
@@ -37,45 +101,35 @@ def network_control_function(pipe):
         host_info = (hostname, ssh_dic[hostname], hosts[hostname]['remote_path'], scp_dic[hostname])
         dl_info_list.append(host_info)
 
-    pipe.send("SSH and SCP clients created in control process")
+    pipe.send("[Network Control] SSH and SCP clients created")
     message  = pipe.recv()
 
     # cleanup 5G states
     server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
 
     # Online Control Loop!
+    ul_bws = initial_bws
+    dl_bws = initial_bws
+    time.sleep(slot_length) # intial sleeping time to determine the effect of the initial bws
 
     while True:
         try:
-            # check if experiment has ended
+            
+            compute_start = time.time_ns()
+
+
+            # Check if experiment has ended
             if pipe.poll():
                 message = pipe.recv()
                 if message == "Experiment ended!":
-                    print(f"[Network-control] {message} Stopping control loop...")
+                    print(f"[Network Control] {message} Stopping control loop...")
                     break
-
-            # Download State
-            print(f"[Network-control] Downloading the state...")
-            t0 = time.time_ns()
-            for i, local_path in enumerate(local_state_files):
-                remote_path = remote_state_files[i]
-                server_scp_nc.get(remote_path, local_path)
-            t1 = time.time_ns()
-            print(f"[Network-control] Download state time: {(t1-t0)/1e6}ms")
-
-            # Cleanup remote 5G state
-            server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
-
-            # Sleep
-            print(f"[Network-control] Sleeping for {slot_length}s...")
-            time.sleep(slot_length)
-
+        
             # Download QoS Files
-            print(f"[Network-control] Downloading the QoS files...")
             t2 = time.time_ns()
             perform_in_parallel(process_host_scp_created, dl_info_list)
             t3 = time.time_ns()
-            print(f"[Network-control] Download QoS time: {(t3-t2)/1e6}ms")
+            print(f"[Network Control] Downloaded QoS files in {(t3-t2)/1e6}ms")
 
             # Cleanup remote QoS Files
             for ssh_client in ssh_dic.values():
@@ -85,16 +139,57 @@ def network_control_function(pipe):
             t4 = time.time_ns()
             QoS_results = parse_QoS_function_main()
             t5 = time.time_ns()
-            print(f"[Network-control] Parse QoS time: {(t5-t4)/1e6}ms")
+            print(f"[Network Control] Parsed QoS files in {(t5-t4)/1e6}ms")
 
+            # Download 5G State
+            t0 = time.time_ns()
+            for i, local_path in enumerate(local_state_files):
+                remote_path = remote_state_files[i]
+                server_scp_nc.get(remote_path, local_path)
+            t1 = time.time_ns()
+            print(f"[Network Control] Downloaded state time in {(t1-t0)/1e6}ms")
 
+            # Cleanup remote 5G state
+            server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
+
+            # Parse 5G state files
+            t11 = time.time_ns()
+            state_5G = parse_state_files_function() 
+            t12 = time.time_ns()
+            print(f"[Network Control] Parsed 5G state files in {(t12-t11)/1e6}ms")
+
+            # Combine state_5G and QoS_results
+            state_and_QoS_list = combine_state_QoS(state_5G, QoS_results)
+            # print(QoS_results)
+            # print(state_and_QoS_list)
+
+            # Estimate bandwidth demands
+            bandwidth_demands = perform_in_parallel(find_bandwidth_demand, state_and_QoS_list)
             
+            # Resolve resource contention
+            bws_ul, bws_dl = resolve_contention(bandwidth_demands)
+
+            # Allocate bandwidths
+            bws_ul_string = ''
+            for x in bws_ul: bws_ul_string += f"{x} "
+
+            bws_dl_string = ''
+            for x in bws_dl: bws_dl_string += f"{x} "
+
+            server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}")
+            server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}")
+            print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
+
+            # Sleep
+            compute_overhead = (time.time_ns() - compute_start)/1e9
+            print(f"[Network Control] Loop overhead is {round(compute_overhead,2)}s")
+            print(f"[Network Control] Sleeping for {slot_length}s\n")
+            time.sleep(slot_length)
+
         except KeyboardInterrupt:
-            print("[Network-control] KeyboardInterrupt detected! Stopping control loop...")
+            print("[Network Control] KeyboardInterrupt detected! Stopping control loop...")
             break # continue to another loop where so that the pipe reads the message "Experiment ended!" in order to gracefully terminate this script
     
-    print("Closing SSH and SCP clients of network control process")
-
     # End all scp and ssh clients
     for host_name in hosts:
         ssh_client = ssh_dic[host_name]
@@ -102,8 +197,4 @@ def network_control_function(pipe):
         scp_client.close()
         ssh_client.close()
 
-    print("Network Control process finished")
-
-
-if __name__ == '__main__':
-    print("yolo")
+    print("[Network Control] SSH and SCP clients closed, process finished!")
