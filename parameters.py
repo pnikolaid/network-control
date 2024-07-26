@@ -130,14 +130,14 @@ openrtist_minimum_on_time = experiment_duration
 
 iperf3_DL_mean_on_time = 3*60
 iperf3_DL_mean_off_time = 4*60
-iperf3_DL_minimum_on_time = 20
+iperf3_DL_minimum_on_time = experiment_duration
 
 iperf3_UL_mean_on_time = 2*60
 iperf3_UL_mean_off_time = 3*60
-iperf3_UL_minimum_on_time = 20
+iperf3_UL_minimum_on_time = experiment_duration
 
-iperf3_DL_rate = "4M"
-iperf3_UL_rate = '0.8M'
+iperf3_DL_rate = "10M"
+iperf3_UL_rate = '10M'
 
 # Network Control Parameters
 slot_length = 10 # in seconds

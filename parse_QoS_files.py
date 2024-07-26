@@ -223,8 +223,6 @@ def perform_in_parallel(function, f_inputs):
 
 
 # Create a dictionary to store timestamps: port -> sequence number -> timestamp x 4 (flows are differentiated based on the port that each OpenRTiST server uses)
-filenames = list_files_in_directory(QoS_folder)
-
 show_timestamps = False
 show_stats = False
 
@@ -232,6 +230,8 @@ show_iperf_dict = False
 show_iperf_results = False
 
 def parse_QoS_function_main():
+    filenames = list_files_in_directory(QoS_folder)
+
     start_time = time.time_ns()
 
     results = {}

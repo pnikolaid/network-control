@@ -34,3 +34,5 @@ with open(pickle_filepath, 'rb') as f:
             data.append(pickle.load(f))
     except EOFError:
         pass
+
+print(data[-1])
