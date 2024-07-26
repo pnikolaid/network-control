@@ -1,4 +1,5 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, initial_bws_string, UEs_per_slice_string, experiment_duration, iperf3_DL_rate, iperf3_UL_rate, QoS_folder, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder, trajectories_folder, minimum_bandwidth
+
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
 from parse_state_files import parse_state_files_function
@@ -17,6 +18,19 @@ def combine_state_QoS(states, QoSs):
         slice_dic[slicename] = {"state": states[slicename], "QoS": QoSs[slicename]}
         list_of_dics.append(slice_dic)
     return list_of_dics
+
+def combine_state_QoS_bw(state_QoS, ul_bws, dl_bws):
+    new_dictionary = {}
+    sliceid = 0
+    for slicename in experiment_setup.keys():
+        if slicename == 'server': continue
+        temp_dic_val = state_QoS[sliceid][slicename]
+        ul_bw = ul_bws[sliceid]
+        dl_bw =  dl_bws[sliceid]
+        new_dictionary[slicename] = temp_dic_val
+        new_dictionary[slicename]["resources"] = {"UL":ul_bw, "DL": dl_bw}
+        sliceid += 1
+    return new_dictionary
 
 def find_bandwidth_demand(combined_dic):
     slicename = next(iter(combined_dic))
@@ -40,14 +54,14 @@ def resolve_contention(demands):
     dl_bws = []
     for slice_demands in demands:
         slicename = next(iter(slice_demands))
-        ul_bws.append(max(slice_demands[slicename]["UL"], 5))
-        dl_bws.append(max(slice_demands[slicename]["DL"], 5))
+        ul_bws.append(max(slice_demands[slicename]["UL"], minimum_bandwidth))
+        dl_bws.append(max(slice_demands[slicename]["DL"], minimum_bandwidth))
 
     ul_alloc_bws = ul_bws
     if sum(ul_bws) > 106:
         ul_alloc_bws = [5] * len(demands)
         remaining_PRBs = 106 - sum(ul_alloc_bws)
-        while remaining_PRBs:
+        for _ in range(len(ul_bws)):
             demand = min(ul_bws)
             argmin = ul_bws.index(min_demand)
 
@@ -135,7 +149,7 @@ def network_control_function(pipe):
             t2 = time.time_ns()
             perform_in_parallel(process_host_scp_created, dl_info_list)
             t3 = time.time_ns()
-            print(f"[Network Control] Downloaded QoS files in {(t3-t2)/1e6}ms")
+            #print(f"[Network Control] Downloaded QoS files in {(t3-t2)/1e6}ms")
 
             # Cleanup remote QoS Files
             for ssh_client in ssh_dic.values():
@@ -145,7 +159,7 @@ def network_control_function(pipe):
             t4 = time.time_ns()
             QoS_results = parse_QoS_function_main()
             t5 = time.time_ns()
-            print(f"[Network Control] Parsed QoS files in {(t5-t4)/1e6}ms")
+            #print(f"[Network Control] Parsed QoS files in {(t5-t4)/1e6}ms")
 
             # Download 5G State
             t0 = time.time_ns()
@@ -153,7 +167,7 @@ def network_control_function(pipe):
                 remote_path = remote_state_files[i]
                 server_scp_nc.get(remote_path, local_path)
             t1 = time.time_ns()
-            print(f"[Network Control] Downloaded state time in {(t1-t0)/1e6}ms")
+            #print(f"[Network Control] Downloaded state time in {(t1-t0)/1e6}ms")
 
             # Cleanup remote 5G state
             server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
@@ -162,7 +176,7 @@ def network_control_function(pipe):
             t11 = time.time_ns()
             state_5G = parse_state_files_function() 
             t12 = time.time_ns()
-            print(f"[Network Control] Parsed 5G state files in {(t12-t11)/1e6}ms")
+            #print(f"[Network Control] Parsed 5G state files in {(t12-t11)/1e6}ms")
 
             # Combine state_5G and QoS_results
             state_and_QoS_list = combine_state_QoS(state_5G, QoS_results)
@@ -182,16 +196,18 @@ def network_control_function(pipe):
             bws_dl_string = ''
             for x in bws_dl: bws_dl_string += f"{x} "
 
-            server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}")
-            server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}")
-            print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
+            #server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}") # Uplink bandwidth allocation
+            #server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}") # Downlink bandwidth allocation
+            #print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
 
-            pickle.dump(state_and_QoS_list, pickle_file)
+            # Log data
+            slot_info = combine_state_QoS_bw(state_and_QoS_list, bws_ul, bws_dl)
+            pickle.dump(slot_info, pickle_file)
 
             # Sleep
             compute_overhead = (time.time_ns() - compute_start)/1e9
-            print(f"[Network Control] Loop overhead is {round(compute_overhead,2)}s")
-            print(f"[Network Control] Sleeping for {slot_length}s\n")
+            #print(f"[Network Control] Loop overhead is {round(compute_overhead,2)}s")
+            #print(f"[Network Control] Sleeping for {slot_length}s\n")
             time.sleep(slot_length)
 
         except KeyboardInterrupt:

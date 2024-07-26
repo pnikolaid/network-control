@@ -87,16 +87,16 @@ def compute_delays(timestamps_dict):
             delays_e2e.append(delay_e2e)
 
     if frames == 0:
-        print("No frames found")
+        # print("No frames found")
         return [], [], [], []
 
     lost_perc = round(100* lost/frames, 2)
     negative_perc = round(100* negative/frames, 2)
     incomplete_perc = round(100* incomplete/frames, 2)
 
-    print(f"Percentage of lost frames: {lost_perc}%")
-    print(f"Percentage of negative frames: {negative_perc}%")
-    print(f"Percentage of incomplete frames: {incomplete_perc}%")
+    #print(f"Percentage of lost frames: {lost_perc}%")
+    #print(f"Percentage of negative frames: {negative_perc}%")
+    #print(f"Percentage of incomplete frames: {incomplete_perc}%")
 
     return delays_ul, delays_edge, delays_dl, delays_e2e
 
@@ -205,9 +205,9 @@ def parse_file(file_info):
     iperf_ul_dic = file_info[3]
 
     if "timestamps" in file_name:
-        parse_timestamp_file(directory, file_name, timestamps_dic)
+        parse_timestamp_file(QoS_folder, file_name, timestamps_dic)
     elif "iperf3" in file_name:
-        parse_iperf_files(directory, file_name, iperf_dl_dic, iperf_ul_dic)
+        parse_iperf_files(QoS_folder, file_name, iperf_dl_dic, iperf_ul_dic)
 
 def perform_in_parallel(function, f_inputs):
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -217,13 +217,13 @@ def perform_in_parallel(function, f_inputs):
             try:
                 result = future.result()
             except Exception as exc:
-                print(f"Input {input_value} generated an exception: {exc}")
+                #print(f"Input {input_value} generated an exception: {exc}")
+                pass
 
 
 
 # Create a dictionary to store timestamps: port -> sequence number -> timestamp x 4 (flows are differentiated based on the port that each OpenRTiST server uses)
-directory = QoS_folder
-filenames = list_files_in_directory(directory)
+filenames = list_files_in_directory(QoS_folder)
 
 show_timestamps = False
 show_stats = False

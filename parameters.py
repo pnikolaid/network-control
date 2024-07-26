@@ -90,7 +90,7 @@ hosts = copy.deepcopy(all_hosts)
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
 # experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
-experiment_setup = {'server': [('finarfin',)], 'iperf3_DL': [('forlong', 2)] }
+experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 1)]}
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
@@ -98,7 +98,6 @@ multiple_openrtist_servers = True
 
 # Experiment Parameters
 experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
-
 experiment_duration = 3600
 
 log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTiST repo, only for reference
@@ -125,16 +124,22 @@ for x in initial_bws:
     initial_bws_string += f"{x} "
 
 # Traffic Parameters
-openrtist_mean_on_time = 60
-openrtist_mean_off_time = 60
-iperf3_DL_mean_on_time = 120
-iperf3_DL_mean_off_time = 240
-iperf3_UL_mean_on_time = 120
-iperf3_UL_mean_off_time = 240
+openrtist_mean_on_time = 5*60
+openrtist_mean_off_time = 5*60
+openrtist_minimum_on_time = experiment_duration
+
+iperf3_DL_mean_on_time = 3*60
+iperf3_DL_mean_off_time = 4*60
+iperf3_DL_minimum_on_time = 20
+
+iperf3_UL_mean_on_time = 2*60
+iperf3_UL_mean_off_time = 3*60
+iperf3_UL_minimum_on_time = 20
 
 iperf3_DL_rate = "4M"
 iperf3_UL_rate = '0.8M'
 
 # Network Control Parameters
-slot_length = 5 # in seconds
+slot_length = 10 # in seconds
 bandwidth_demand_algorithm = "basic"
+minimum_bandwidth = 10 # PRBs
