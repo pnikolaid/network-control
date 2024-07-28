@@ -1,6 +1,6 @@
 import os
 import copy
-from parameters import UEs_per_slice, slicenames, log_5G_state_period_in_ms, symbols_per_subframe, TDD_slots_ratio
+from parameters import UEs_per_slice, slicenames, log_5G_state_period_in_ms, symbols_per_subframe, TDD_slots_ratio, iperf3_UL_rate, iperf3_DL_rate, openrtist_rate_DL, openrtist_rate_UL
 import time
 import numpy as np
 from collections import defaultdict
@@ -105,6 +105,20 @@ def extract_state_metrics(data):
             rates_over_slot = [] # slot refers to the control slot (in the order of seconds)
             PRB_factor_over_slot = [] 
             queue_bytes_over_slot = []
+            slice_PRB_demand_per_flow_over_time = []
+
+            if "OpenRTiST" in slice:
+                if "DL" == hop:
+                    arrival_flow_metrics = np.array(openrtist_rate_DL)
+                if "UL" == hop:
+                    arrival_flow_metrics = np.array(openrtist_rate_UL)
+            if "iperf3" in slice:
+                if "DL" == hop:
+                    arrival_flow_metrics = np.array([float(iperf3_DL_rate[:-1]), 0, float(iperf3_DL_rate[:-1])])
+                if "UL" == hop:
+                    arrival_flow_metrics = np.array([float(iperf3_UL_rate[:-1]), 0, float(iperf3_UL_rate[:-1])])
+            
+            flow_bits_per_frame = arrival_flow_metrics[0] * 1e4
 
             for frame_data in array[1:,]:
                 
@@ -113,7 +127,8 @@ def extract_state_metrics(data):
                 old_ue_bytes = ue_bytes
                 total_rate = (sum(rate_bytes) * 8) / (log_5G_state_period_in_ms * 1000) # in Mbps
 
-                bits_per_frame = 10 * 8 * rate_bytes/log_5G_state_period_in_ms # on average kB arriving every ms
+                bits_per_frame = 10 * 8 * rate_bytes/log_5G_state_period_in_ms # on average bits arriving every frame
+
 
                 # PRBs needed to match the arrival rate =  (some system constants that depends on 5G configuration)* PRB_factor (for each UE)
                 data_resources_perc = 1 - control_overheard_in_resources[hop] 
@@ -121,6 +136,11 @@ def extract_state_metrics(data):
                 PRB_factors = bits_per_frame / (old_spectral_efficiency * 12 * symbols_per_subframe * 10 * data_resources_perc * slots_perc) # based on TS 38.306 Sec. 4.1, we multiply by 28 since there are 28 symbols in 1 ms when SCS = 30 kHz
                 total_PRB_factor = sum(PRB_factors)  # total PRBs needed to match the slice's arrival rate = (the same unknown constant)*total_PRB_factor
 
+                slice_PRB_demand_per_flow = []
+                for sf in old_spectral_efficiency:
+                    ue_flow_PRB_demand = flow_bits_per_frame / (sf * 12 * symbols_per_subframe * 10 * data_resources_perc * slots_perc) # based on TS 38.306 Sec. 4.1, we multiply by 28 since there are 28 symbols in 1 ms when SCS = 30 kHz
+                    slice_PRB_demand_per_flow.append(ue_flow_PRB_demand)
+                slice_PRB_demand_per_flow = np.array(slice_PRB_demand_per_flow)
 
                 mcss = frame_data[:, 2]
                 spectral_efficiency = np.array([mcs_to_spectral_efficiency[m] for m in mcss])
@@ -135,11 +155,15 @@ def extract_state_metrics(data):
                 rates_over_slot.append(total_rate)
                 PRB_factor_over_slot.append(total_PRB_factor)
                 queue_bytes_over_slot.append(total_queue_bytes)
+                slice_PRB_demand_per_flow_over_time.append(slice_PRB_demand_per_flow)
 
             current_queue = total_queue_bytes
             rate_metrics = [np.mean(rates_over_slot), np.std(rates_over_slot), np.max(rates_over_slot)]
             PRB_factor_metrics = [np.mean(PRB_factor_over_slot), np.std(PRB_factor_over_slot), np.max(PRB_factor_over_slot)]
             queue_metrics = [np.mean(queue_bytes_over_slot), np.std(queue_bytes_over_slot), np.max(queue_bytes_over_slot), current_queue]
+
+            slice_PRB_demand_per_flow_over_time = np.array(slice_PRB_demand_per_flow_over_time)
+            state_metrics[hop][slice]["PRB demand per flow metrics"] = [list(np.mean(slice_PRB_demand_per_flow_over_time, axis = 0)), list(np.std(slice_PRB_demand_per_flow_over_time, axis = 0)), list(np.max(slice_PRB_demand_per_flow_over_time, axis = 0))]
 
             #print(rate_metrics)
             #print(PRB_factor_metrics)

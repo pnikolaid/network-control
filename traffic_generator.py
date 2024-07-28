@@ -82,6 +82,28 @@ for e in range(iperf3_UL_num_ports):
 
 ports_dict = {'OpenRTiST': openrtist_ports, 'iperf3_DL': iperf3_DL_ports, 'iperf3_UL': iperf3_UL_ports }
 original_ports_dict = copy.deepcopy(ports_dict)
+openrtist_ports_copy = openrtist_ports.copy()
+iperf3_DL_ports_copy = iperf3_DL_ports.copy()
+iperf3_UL_ports_copy = iperf3_UL_ports.copy()
+
+# Find ports per UE
+ports_dict_per_ue = {}
+for key in experiment_setup.keys():
+    if key == 'server': continue
+
+    for tuple in experiment_setup[key]:
+        (ue_name, n_flows) = tuple
+        if 'OpenRTiST' in key:
+            # extract n_flow items from openrtist ports
+            ue_ports, openrtist_ports_copy = openrtist_ports_copy[:n_flows], openrtist_ports_copy[n_flows:]
+
+        if 'iperf3_DL' in key:
+             ue_ports, iperf3_DL_ports_copy = iperf3_DL_ports_copy[:n_flows], iperf3_DL_ports_copy[n_flows:]
+
+        if 'iperf3_UL' in key:
+             ue_ports, iperf3_UL_ports_copy = iperf3_UL_ports_copy[:n_flows], iperf3_UL_ports_copy[n_flows:]
+        ports_dict_per_ue[ue_name] = ue_ports
+
 
 # Create Traffic Scenario on Each UE
 parent_dir = os.path.dirname(os.getcwd())
@@ -284,7 +306,7 @@ print(f"The quectel modules are on and the UEs have connected to the 5G system!"
 traffic_end, control_end = multiprocessing.Pipe()
 
 # Define RL process to be run in parallel with traffic generator
-control_process = multiprocessing.Process(target=network_control_function, args=(control_end,))
+control_process = multiprocessing.Process(target=network_control_function, args=(control_end, ports_dict_per_ue))
 
 # Start RL process
 control_process.start()

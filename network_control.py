@@ -3,12 +3,12 @@ from parameters import hosts, experiment_identifier, bash_folder, experiment_set
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
 from parse_state_files import parse_state_files_function
-
 import time
 import math
 import os
 import pickle
 from scp import SCPClient
+from collections import defaultdict
 
 
 def combine_state_QoS(states, QoSs):
@@ -28,9 +28,39 @@ def combine_state_QoS_bw(state_QoS, ul_bws, dl_bws):
         ul_bw = ul_bws[sliceid]
         dl_bw =  dl_bws[sliceid]
         new_dictionary[slicename] = temp_dic_val
-        new_dictionary[slicename]["resources"] = {"UL":ul_bw, "DL": dl_bw}
+        new_dictionary[slicename]["resources"] = {"UL": ul_bw, "DL": dl_bw}
         sliceid += 1
     return new_dictionary
+
+def parse_slot_info(info, ports_per_ue):
+
+    active_flows_per_ue = defaultdict(int)
+    for slicename in info:
+        active_flows = [key for key in info[slicename]["QoS"].keys()]
+        for port_id in active_flows:
+            for ue in ports_per_ue.keys():
+                ue_ports = ports_per_ue[ue]
+                if int(port_id) in ue_ports:
+                    active_flows_per_ue[ue] += 1
+
+    for slicename in info:
+        state = info[slicename]["state"]
+        hops = ["UL", "DL"]
+        for hop in hops:
+            mean_PRBs_per_flow = state[hop]['PRB demand per flow metrics'][0]
+            max_PRBs_per_flow = state[hop]['PRB demand per flow metrics'][2]
+
+            mean_slice_demand = 0
+            max_slice_demand = 0
+            for idx, tuple in enumerate(experiment_setup[slicename]):
+                uename = tuple[0]
+                mean_slice_demand += mean_PRBs_per_flow[idx] * active_flows_per_ue[uename]
+                max_slice_demand += max_PRBs_per_flow[idx] * active_flows_per_ue[uename]
+
+            info[slicename]["state"][hop]["mean PRB slice demand"] = math.ceil(mean_slice_demand)
+            info[slicename]["state"][hop]["max PRB slice demand"] = math.ceil(max_slice_demand)
+    
+    return info
 
 def find_bandwidth_demand(combined_dic):
     slicename = next(iter(combined_dic))
@@ -101,7 +131,7 @@ remote_state_files =[os.path.join(server_configs_5G_folder, x) for x in state_fi
 bws_ul_filepath = configs_5G_folder + '/slice_bws_ul.txt'
 bws_dl_filepath = configs_5G_folder + '/slice_bws_dl.txt'
 
-def network_control_function(pipe):
+def network_control_function(pipe, ports_per_ue):
 
     # Re-create ssh and scp clients for all hosts since each process should have its own connections
     ssh_dic = {}
@@ -202,7 +232,8 @@ def network_control_function(pipe):
 
             # Log data
             slot_info = combine_state_QoS_bw(state_and_QoS_list, bws_ul, bws_dl)
-            pickle.dump(slot_info, pickle_file)
+            new_slot_info = parse_slot_info(slot_info, ports_per_ue)
+            pickle.dump(new_slot_info, pickle_file)
 
             # Sleep
             compute_overhead = (time.time_ns() - compute_start)/1e9

@@ -90,7 +90,7 @@ hosts = copy.deepcopy(all_hosts)
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
 # experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
-experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 2)]}
+experiment_setup = {'server': [('finarfin',)],  'iperf3_UL': [('fingolfin', 2), ('finrod', 1)]}
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
@@ -138,8 +138,10 @@ iperf3_UL_mean_on_time = 2*60
 iperf3_UL_mean_off_time = 3*60
 iperf3_UL_minimum_on_time = experiment_duration
 
-iperf3_DL_rate = "10M"
-iperf3_UL_rate = '10M'
+iperf3_DL_rate = "2M"
+iperf3_UL_rate = '3M'
+openrtist_rate_UL = [2.9972807843137255, 0.390072168807025, 3.19048] # UL arrival rate [mean, std, max]
+openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 10 # in seconds
