@@ -43,9 +43,13 @@ def parse_slot_info(info, ports_per_ue):
                 if int(port_id) in ue_ports:
                     active_flows_per_ue[ue] += 1
 
+    results_list = []
     for slicename in info:
+        slice_list = [slicename]
+
         state = info[slicename]["state"]
         hops = ["UL", "DL"]
+
         for hop in hops:
             mean_PRBs_per_flow = state[hop]['PRB demand per flow metrics'][0]
             max_PRBs_per_flow = state[hop]['PRB demand per flow metrics'][2]
@@ -59,24 +63,20 @@ def parse_slot_info(info, ports_per_ue):
 
             info[slicename]["state"][hop]["mean PRB slice demand"] = math.ceil(mean_slice_demand)
             info[slicename]["state"][hop]["max PRB slice demand"] = math.ceil(max_slice_demand)
-    
-    return info
+        
+            slice_list.append(math.ceil(mean_slice_demand))
+            slice_list.append(math.ceil(max_slice_demand))
+        results_list.append(slice_list) # each slice_list = [slicename, ul_mean_bw, ul_max_bw, dl_mean_bw, dl_max_bw]
+    return info, results_list
 
-def find_bandwidth_demand(combined_dic):
-    slicename = next(iter(combined_dic))
-
+def find_bandwidth_demand(slice_list):
     bw_dic = {}
+    slicename = slice_list[0]
     bw_dic[slicename] = {}
-
-    state = combined_dic[slicename]["state"]
-    QoS = combined_dic[slicename]["QoS"]
-
     if bandwidth_demand_algorithm == 'basic':
-        for hop in state.keys():
-            value = state[hop]["PRB demand metrics"][0]
-            demand = math.ceil(value)
-            bw_dic[slicename][hop] = demand
-    
+        bw_dic[slicename]["UL"] = slice_list[1]
+        bw_dic[slicename]["DL"] = slice_list[3]
+
     return bw_dic
 
 def resolve_contention(demands):
@@ -158,9 +158,12 @@ def network_control_function(pipe, ports_per_ue):
     server_ssh_nc.exec_command(f"cd {bash_folder} \n sudo ./cleanup_5G_state.sh")
 
     # Online Control Loop!
-    ul_bws = initial_bws
-    dl_bws = initial_bws
+    bws_ul = initial_bws
+    bws_dl = initial_bws
+    gpu_freq = 1600
     time.sleep(slot_length) # intial sleeping time to determine the effect of the initial bws
+    completed_loops = 0
+    total_overhead = 0
 
     while True:
         try:
@@ -174,7 +177,7 @@ def network_control_function(pipe, ports_per_ue):
                 if message == "Experiment ended!":
                     print(f"[Network Control] {message} Stopping control loop...")
                     break
-        
+                    
             # Download QoS Files
             t2 = time.time_ns()
             perform_in_parallel(process_host_scp_created, dl_info_list)
@@ -210,11 +213,17 @@ def network_control_function(pipe, ports_per_ue):
 
             # Combine state_5G and QoS_results
             state_and_QoS_list = combine_state_QoS(state_5G, QoS_results)
-            # print(QoS_results)
-            # print(state_and_QoS_list)
+
+            # Find the input features to the learning algorithm and 
+            slot_info = combine_state_QoS_bw(state_and_QoS_list, bws_ul, bws_dl)
+            new_slot_info, features = parse_slot_info(slot_info, ports_per_ue)
+            new_slot_info["GPU_FREQ"] = gpu_freq
+            pickle.dump(new_slot_info, pickle_file)
+            print(features)
+
 
             # Estimate bandwidth demands
-            bandwidth_demands = perform_in_parallel(find_bandwidth_demand, state_and_QoS_list)
+            bandwidth_demands = perform_in_parallel(find_bandwidth_demand, features)
             
             # Resolve resource contention
             bws_ul, bws_dl = resolve_contention(bandwidth_demands)
@@ -230,14 +239,21 @@ def network_control_function(pipe, ports_per_ue):
             #server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}") # Downlink bandwidth allocation
             #print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
 
-            # Log data
-            slot_info = combine_state_QoS_bw(state_and_QoS_list, bws_ul, bws_dl)
-            new_slot_info = parse_slot_info(slot_info, ports_per_ue)
-            pickle.dump(new_slot_info, pickle_file)
+            if completed_loops % 4 == 0:
+                gpu_freq = 500
+            else:
+                gpu_freq = 1600
+            
+            # Change GPU frequency
+            server_ssh_nc.exec_command(f"sudo nvidia-smi -lgc {gpu_freq}")
+
+            completed_loops += 1
 
             # Sleep
-            compute_overhead = (time.time_ns() - compute_start)/1e9
-            #print(f"[Network Control] Loop overhead is {round(compute_overhead,2)}s")
+            compute_overhead = (time.time_ns() - compute_start) / 1e9
+            total_overhead += compute_overhead
+            avg_overhead = compute_overhead/completed_loops
+            print(f"[Network Control] Average control loop overhead is {round(avg_overhead,2)}s")
             #print(f"[Network Control] Sleeping for {slot_length}s\n")
             time.sleep(slot_length)
 
