@@ -410,7 +410,6 @@ def parse_QoS_function_main_backup():
                 statistics = compute_statistics(vector)
                 all_stats[name_hops[k]] = statistics
 
-
             results[slice_name] = all_stats
             if show_stats:
                 print_stats_dict(all_stats)

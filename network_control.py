@@ -1,4 +1,4 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_algorithm, configs_5G_folder, trajectories_folder, minimum_bandwidth
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound
 
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
@@ -9,7 +9,33 @@ import os
 import pickle
 from scp import SCPClient
 from collections import defaultdict
+import bisect
+from ucb1 import vUCB1, compute_reward
 
+vucb1_dic = {}
+
+def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
+    print(qos_results)
+    if bandwidth_demand_estimator == 'vucb1':
+        for slicename in trajectory_dic:
+            if 'OpenRTiST' in slicename:
+                qos_reward = 1
+                for flow in qos_results[slicename]:
+                    if flow['E2E'] > e2e_bound:
+                        qos_reward = 0
+                        break
+                state  = trajectory_dic[slicename]['state']
+                arm_selected = (trajectory_dic[slicename]["UL"], trajectory_dic[slicename]['GPU_FREQ'], trajectory_dic[slicename]["DL"])
+                vucb1_dic[state].update(arm_selected, qos_reward)
+                reward = compute_reward(arm_selected, qos_reward)
+                trajectory_dic[slicename]['QoS_reward'] = qos_reward
+                trajectory_dic[slicename]['reward'] = reward
+
+
+def find_smallest_greater(x, array):
+    index = bisect.bisect_right(array, x)
+    index = min(index, len(array) - 1)
+    return array[index]
 
 def combine_state_QoS(states, QoSs):
     list_of_dics = []
@@ -73,11 +99,25 @@ def find_bandwidth_demand(slice_list):
     bw_dic = {}
     slicename = slice_list[0]
     bw_dic[slicename] = {}
-    if bandwidth_demand_algorithm == 'basic':
+    if bandwidth_demand_estimator == 'basic':
         bw_dic[slicename]["UL"] = slice_list[1]
         bw_dic[slicename]["DL"] = slice_list[3]
 
+    elif bandwidth_demand_estimator == 'vucb1':
+        mean_UL_PRBs = find_smallest_greater(slice_list[1], actions_UL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[1], actions_DL_PRBs)
+        state = (mean_UL_PRBs, mean_DL_PRBs)
+        if state not in vucb1_dic:
+            vucb1_dic[state] = vUCB1(all_actions, arm_correlations)
+        arm_selected = vucb1_dic[state].select_arm()
+        bw_dic[slicename]["UL"] = arm_selected[0]
+        bw_dic[slicename]["DL"] = arm_selected[2]
+        bw_dic[slicename]['GPU_FREQ'] = arm_selected[1]
+        bw_dic[slicename]["state"] = state
+
+    
     return bw_dic
+        
 
 def resolve_contention(demands):
     ul_bws = []
@@ -164,7 +204,7 @@ def network_control_function(pipe, ports_per_ue):
     time.sleep(slot_length) # intial sleeping time to determine the effect of the initial bws
     completed_loops = 0
     total_overhead = 0
-
+    trajectory_dics = []
     while True:
         try:
             
@@ -194,6 +234,11 @@ def network_control_function(pipe, ports_per_ue):
             t5 = time.time_ns()
             #print(f"[Network Control] Parsed QoS files in {(t5-t4)/1e6}ms")
 
+            # Update the state of the learning algorithm
+            if trajectory_dics:
+                update_bandwidth_demand_estimator(trajectory_dics[-1], QoS_results)
+                print(trajectory_dics[-1])
+
             # Download 5G State
             t0 = time.time_ns()
             for i, local_path in enumerate(local_state_files):
@@ -219,14 +264,18 @@ def network_control_function(pipe, ports_per_ue):
             new_slot_info, features = parse_slot_info(slot_info, ports_per_ue)
             new_slot_info["GPU_FREQ"] = gpu_freq
             pickle.dump(new_slot_info, pickle_file)
-            print(features)
-
 
             # Estimate bandwidth demands
-            bandwidth_demands = perform_in_parallel(find_bandwidth_demand, features)
-            
+            action_dic = perform_in_parallel(find_bandwidth_demand, features)
+
+            trajectory_dic = {}
+            for item in action_dic:
+                slicename = next(iter(item))
+                trajectory_dic[slicename] = item[slicename]
+            trajectory_dics.append(trajectory_dic)
+
             # Resolve resource contention
-            bws_ul, bws_dl = resolve_contention(bandwidth_demands)
+            bws_ul, bws_dl = resolve_contention(action_dic)
 
             # Allocate bandwidths
             bws_ul_string = ''
@@ -238,11 +287,6 @@ def network_control_function(pipe, ports_per_ue):
             #server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}") # Uplink bandwidth allocation
             #server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}") # Downlink bandwidth allocation
             #print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
-
-            if completed_loops % 4 == 0:
-                gpu_freq = 500
-            else:
-                gpu_freq = 1600
             
             # Change GPU frequency
             server_ssh_nc.exec_command(f"sudo nvidia-smi -lgc {gpu_freq}")
@@ -253,7 +297,7 @@ def network_control_function(pipe, ports_per_ue):
             compute_overhead = (time.time_ns() - compute_start) / 1e9
             total_overhead += compute_overhead
             avg_overhead = compute_overhead/completed_loops
-            print(f"[Network Control] Average control loop overhead is {round(avg_overhead,2)}s")
+            print(f"[Network Control] Average control loop overhead is {round(avg_overhead, 2)}s")
             #print(f"[Network Control] Sleeping for {slot_length}s\n")
             time.sleep(slot_length)
 

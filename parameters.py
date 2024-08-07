@@ -1,6 +1,7 @@
 import copy
 from datetime import datetime
 import os
+import numpy as np
 
 def keep_only_experiment_hosts(setup):
 
@@ -145,5 +146,32 @@ openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 10 # in seconds
-bandwidth_demand_algorithm = "basic"
+bandwidth_demand_estimator = "vucb1"  # "basic", "vucb1"
 minimum_bandwidth = 10 # PRBs
+
+
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 5))
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 5))
+actions_GPU_freq = list(range(500, 1601, 100))
+
+# Configure action space and action/QoS cost
+all_actions = []
+for a in actions_UL_PRBs:
+    for b in actions_GPU_freq:
+        for c in actions_DL_PRBs:
+            all_actions.append(tuple([a, b, c]))
+
+
+action_cost = [1, 1, 1]
+##
+
+max_action_list = list(np.amax(np.array(all_actions), axis=0))
+max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost)])
+min_action_list = list(np.amin(np.array(all_actions), axis=0))
+min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
+cost_of_qos = 10*max_action_cost  + 1
+
+e2e_bound = 100
+
+#vucb1 
+arm_correlations = True
