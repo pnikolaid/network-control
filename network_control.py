@@ -21,7 +21,10 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
             if 'OpenRTiST' in slicename:
                 qos_reward = 1
                 for flow in qos_results[slicename]:
-                    if flow['E2E'] > e2e_bound:
+                    if 'mean' not in qos_results[slicename][flow]['E2E']:
+                        qos_reward = 0
+                        break
+                    if qos_results[slicename][flow]['E2E']['mean'] > e2e_bound:
                         qos_reward = 0
                         break
                 state  = trajectory_dic[slicename]['state']
@@ -268,11 +271,17 @@ def network_control_function(pipe, ports_per_ue):
             # Estimate bandwidth demands
             action_dic = perform_in_parallel(find_bandwidth_demand, features)
 
+            # Transfrom dictionary
             trajectory_dic = {}
             for item in action_dic:
                 slicename = next(iter(item))
                 trajectory_dic[slicename] = item[slicename]
             trajectory_dics.append(trajectory_dic)
+
+            # Find gpu_freq
+            for slicename in trajectory_dic:
+                if slicename in 'OpenRTiST':
+                    gpu_freq = trajectory_dic[slicename]['GPU_FREQ']
 
             # Resolve resource contention
             bws_ul, bws_dl = resolve_contention(action_dic)
@@ -284,8 +293,8 @@ def network_control_function(pipe, ports_per_ue):
             bws_dl_string = ''
             for x in bws_dl: bws_dl_string += f"{x} "
 
-            #server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}") # Uplink bandwidth allocation
-            #server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}") # Downlink bandwidth allocation
+            server_ssh_nc.exec_command(f"echo {bws_ul_string} >| {bws_ul_filepath}") # Uplink bandwidth allocation
+            server_ssh_nc.exec_command(f"echo {bws_dl_string} >| {bws_dl_filepath}") # Downlink bandwidth allocation
             #print(f"[Network Control] Allocated {bws_ul} in UL and {bws_dl} in DL")
             
             # Change GPU frequency

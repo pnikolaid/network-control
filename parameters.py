@@ -150,9 +150,9 @@ bandwidth_demand_estimator = "vucb1"  # "basic", "vucb1"
 minimum_bandwidth = 10 # PRBs
 
 
-actions_UL_PRBs = list(range(minimum_bandwidth, 107, 5))
-actions_DL_PRBs = list(range(minimum_bandwidth, 107, 5))
-actions_GPU_freq = list(range(500, 1601, 100))
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 30))
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 30))
+actions_GPU_freq = list(range(500, 1601, 500))
 
 # Configure action space and action/QoS cost
 all_actions = []
