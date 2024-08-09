@@ -5,7 +5,10 @@ from collections import defaultdict
 import time
 
 def compute_reward(action, qos_reward, cost_of_action=action_cost, cost_of_qos_violation=cost_of_qos, action_cost_max=max_action_cost, action_cost_min=min_action_cost, visualize=False):    
-    total_action_cost =  sum([x*y for x,y in zip(action, cost_of_action)])
+    if type(action) is list:
+        total_action_cost =  sum([x*y for x,y in zip(action, cost_of_action)])
+    else:
+        total_action_cost = action
     round_cost = total_action_cost + (1 - qos_reward) * cost_of_qos_violation
     round_reward = -round_cost
     max_cost = action_cost_max + cost_of_qos_violation
@@ -50,7 +53,7 @@ class vUCB1:
 
             if self.counts_dic[arm] == 0:
                 selected_arm = arm
-                # self.print_debug_info(ucb_indices, selected_arm)
+                #self.print_debug_info(ucb_indices_dic, selected_arm)
                 self.times_selected_dic[selected_arm] += 1
                 return selected_arm
 

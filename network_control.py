@@ -1,4 +1,4 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list
 
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
@@ -13,27 +13,51 @@ import bisect
 from ucb1 import vUCB1, compute_reward
 
 vucb1_dic = {}
+vucb1_dic_dl = {}
+vcub1_dic_edge = {}
+vucb1_dic_ul = {}
+vucb1_per_hop_dics = [vucb1_dic_dl, vcub1_dic_edge, vucb1_dic_ul]
+
 
 def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
-    print(qos_results)
-    if bandwidth_demand_estimator == 'vucb1':
-        for slicename in trajectory_dic:
-            if 'OpenRTiST' in slicename:
-                qos_reward = 1
-                for flow in qos_results[slicename]:
-                    if 'mean' not in qos_results[slicename][flow]['E2E']:
-                        qos_reward = 0
-                        break
-                    if qos_results[slicename][flow]['E2E']['mean'] > e2e_bound:
-                        qos_reward = 0
-                        break
+    for slicename in trajectory_dic:
+        if 'OpenRTiST' in slicename:
+            qos_reward = 1
+            for flow in qos_results[slicename]:
+                if 'mean' not in qos_results[slicename][flow]['E2E']:
+                    qos_reward = 0
+                    break
+                if qos_results[slicename][flow]['E2E']['mean'] > e2e_bound:
+                    qos_reward = 0
+                    break
+            
+            if bandwidth_demand_estimator == 'vucb1':
                 state  = trajectory_dic[slicename]['state']
-                arm_selected = (trajectory_dic[slicename]["UL"], trajectory_dic[slicename]['GPU_FREQ'], trajectory_dic[slicename]["DL"])
+                arm_selected = (trajectory_dic[slicename]["UL"], trajectory_dic[slicename]['EDGE'], trajectory_dic[slicename]["DL"])
                 vucb1_dic[state].update(arm_selected, qos_reward)
                 reward = compute_reward(arm_selected, qos_reward)
                 trajectory_dic[slicename]['QoS_reward'] = qos_reward
                 trajectory_dic[slicename]['reward'] = reward
 
+            elif bandwidth_demand_estimator == 'vucb1-per-hop':
+                hops = ["UL", "EDGE", "DL"]
+                arm_selected = []
+                for k, hop in enumerate(hops):
+                    hop_qos_reward = 1
+                    for flow in qos_results[slicename]:
+                        if 'mean' not in qos_results[slicename][flow][hop]:
+                            hop_qos_reward = 0
+                            break
+                        if qos_results[slicename][flow][hop]['mean'] > delay_bounds[k]:
+                            hop_qos_reward = 0
+                            break
+                    hop_arm_selected = trajectory_dic[slicename][hop]
+                    arm_selected.append(hop_arm_selected)
+                    hop_state  = trajectory_dic[slicename]['state'][k]
+                    vucb1_per_hop_dics[k][hop_state].update(hop_arm_selected, hop_qos_reward)
+                reward = compute_reward(arm_selected, qos_reward)
+                trajectory_dic[slicename]['QoS_reward'] = qos_reward
+                trajectory_dic[slicename]['reward'] = reward
 
 def find_smallest_greater(x, array):
     index = bisect.bisect_right(array, x)
@@ -114,10 +138,25 @@ def find_bandwidth_demand(slice_list):
             vucb1_dic[state] = vUCB1(all_actions, arm_correlations)
         arm_selected = vucb1_dic[state].select_arm()
         bw_dic[slicename]["UL"] = arm_selected[0]
+        bw_dic[slicename]['EDGE'] = arm_selected[1]
         bw_dic[slicename]["DL"] = arm_selected[2]
-        bw_dic[slicename]['GPU_FREQ'] = arm_selected[1]
         bw_dic[slicename]["state"] = state
-
+    
+    elif bandwidth_demand_estimator == 'vucb1-per-hop':
+        mean_UL_PRBs = find_smallest_greater(slice_list[1], actions_UL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[1], actions_DL_PRBs)
+        state_ul = mean_UL_PRBs
+        state_edge = mean_UL_PRBs
+        state_dl = mean_DL_PRBs
+        state_components = [state_ul, state_edge, state_dl]
+        hops = ['UL', 'EDGE', 'DL']
+        for k, state_hop in enumerate(state_components):
+            if state_hop not in vucb1_per_hop_dics[k]:
+                vucb1_per_hop_dics[k][state_hop] = vUCB1(action_list[k], arm_correlations)
+            hop_arm_selected = vucb1_per_hop_dics[k][state_hop].select_arm()
+            hop = hops[k]
+            bw_dic[slicename][hop] = hop_arm_selected
+        bw_dic[slicename]["state"] = state_components
     
     return bw_dic
         
@@ -241,6 +280,7 @@ def network_control_function(pipe, ports_per_ue):
             if trajectory_dics:
                 update_bandwidth_demand_estimator(trajectory_dics[-1], QoS_results)
                 print(trajectory_dics[-1])
+                print(QoS_results)
 
             # Download 5G State
             t0 = time.time_ns()
@@ -281,7 +321,7 @@ def network_control_function(pipe, ports_per_ue):
             # Find gpu_freq
             for slicename in trajectory_dic:
                 if slicename in 'OpenRTiST':
-                    gpu_freq = trajectory_dic[slicename]['GPU_FREQ']
+                    gpu_freq = trajectory_dic[slicename]['EDGE']
 
             # Resolve resource contention
             bws_ul, bws_dl = resolve_contention(action_dic)
@@ -305,8 +345,8 @@ def network_control_function(pipe, ports_per_ue):
             # Sleep
             compute_overhead = (time.time_ns() - compute_start) / 1e9
             total_overhead += compute_overhead
-            avg_overhead = compute_overhead/completed_loops
-            print(f"[Network Control] Average control loop overhead is {round(avg_overhead, 2)}s")
+            avg_overhead = total_overhead/completed_loops
+            print(f"[Network Control] Control loop overhead, current {round(compute_overhead, 2)}s and average {round(avg_overhead, 2)}s")
             #print(f"[Network Control] Sleeping for {slot_length}s\n")
             time.sleep(slot_length)
 

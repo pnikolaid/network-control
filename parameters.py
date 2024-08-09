@@ -91,7 +91,7 @@ hosts = copy.deepcopy(all_hosts)
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
 # experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
-experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 2), ('finrod', 1)]}
+experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 2)]}
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
@@ -127,7 +127,7 @@ for x in initial_bws:
 openrtist_per_flow_QoS = True
 
 # Traffic Parameters
-openrtist_mean_on_time = 5*60
+openrtist_mean_on_time = 10*60
 openrtist_mean_off_time = 5*60
 openrtist_minimum_on_time = experiment_duration
 
@@ -146,15 +146,18 @@ openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 10 # in seconds
-bandwidth_demand_estimator = "vucb1"  # "basic", "vucb1"
+bandwidth_demand_estimator = "vucb1-per-hop"  # "basic", "vucb1", 'vucb1-per-hop'
 minimum_bandwidth = 10 # PRBs
 
-
-actions_UL_PRBs = list(range(minimum_bandwidth, 107, 30))
-actions_DL_PRBs = list(range(minimum_bandwidth, 107, 30))
+# Configure action space and action/QoS cost
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
+#actions_DL_PRBs = [105]
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
+#actions_GPU_freq = [1500]
 actions_GPU_freq = list(range(500, 1601, 500))
 
-# Configure action space and action/QoS cost
+action_list = [actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs]
+
 all_actions = []
 for a in actions_UL_PRBs:
     for b in actions_GPU_freq:
@@ -171,7 +174,12 @@ min_action_list = list(np.amin(np.array(all_actions), axis=0))
 min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
 cost_of_qos = 10*max_action_cost  + 1
 
-e2e_bound = 100
+# Desired QoS
+e2e_bound = 120
+ul_bound = 50
+edge_bound = 20 
+dl_bound = 50
+delay_bounds = [ul_bound, edge_bound, dl_bound]
 
 #vucb1 
 arm_correlations = True
