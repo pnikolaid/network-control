@@ -305,7 +305,7 @@ def network_control_function(pipe, ports_per_ue):
             # Find the input features to the learning algorithm and 
             slot_info = combine_state_QoS_bw(state_and_QoS_list, bws_ul, bws_dl)
             new_slot_info, features = parse_slot_info(slot_info, ports_per_ue)
-            new_slot_info["GPU_FREQ"] = gpu_freq
+            new_slot_info["GPU_FREQ"] = gpu_freq # this is common for all slices
             pickle.dump(new_slot_info, pickle_file)
 
             # Estimate bandwidth demands
