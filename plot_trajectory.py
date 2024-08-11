@@ -46,14 +46,19 @@ def average_per_unique_value(a, b):
     # Find unique values in b and their indices
     unique_b_values = np.unique(b)
     averages = {}
+    values_per_unique_value = {}
+    recent_averages = {}
 
     # Calculate the average of a based on the unique values in b
     for value in unique_b_values:
         mask = (b == value)
         average = np.mean(a[mask])
         averages[value] = average
+        values_per_unique_value[value] = a[mask]
+        recent_averages[value] = np.mean(a[mask][-30:])
+
     
-    return averages
+    return averages, recent_averages
 
 
 most_recent_pickle_filepath = find_most_recent_file(trajectories_folder)
@@ -166,11 +171,15 @@ for slicename in plot_results:
     ax1.legend(handles, labels)
 
     # Calculate the average of a based on the unique values in b
-    dl_prb_per_active_flows = average_per_unique_value(dl_prbs, active_flows)
-    ul_prb_per_active_flows = average_per_unique_value(ul_prbs, active_flows)
-    gpu_freqs_per_active_flows = average_per_unique_value(gpu_freqs, active_flows)
-    qos_per_active_flows = average_per_unique_value(e2e_qos, active_flows)
-    print(list(qos_per_active_flows.keys()))
+    dl_prb_per_active_flows, dl_prb_recent_per_active_flows = average_per_unique_value(dl_prbs, active_flows)
+    ul_prb_per_active_flows, ul_prb_recent_per_active_flows = average_per_unique_value(ul_prbs, active_flows)
+    gpu_freqs_per_active_flows, gpu_freqs_recent_per_active_flows = average_per_unique_value(gpu_freqs, active_flows)
+    qos_per_active_flows, qos_recent_per_active_flows = average_per_unique_value(e2e_qos, active_flows)
+
+    print(dl_prb_recent_per_active_flows)
+    print(ul_prb_recent_per_active_flows)
+    print(qos_recent_per_active_flows)
+    
 
     bar_width = 0.4  # Width of each bar
 
@@ -226,7 +235,6 @@ for slicename in plot_results:
 
     # FOURTH SUBPLOT FOR per state GPU
     y_gpu = [int(v) for v in gpu_freqs_per_active_flows.values()]
-    print(y_gpu)
     bars = ax4.bar(gpu_freqs_per_active_flows.keys(), y_gpu, bar_width)
 
     # Annotate bars with their values

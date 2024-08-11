@@ -145,14 +145,18 @@ openrtist_rate_UL = [2.9972807843137255, 0.390072168807025, 3.19048] # UL arriva
 openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
-slot_length = 10 # in seconds
+slot_length = 15 # in seconds
 bandwidth_demand_estimator = "vucb1-per-hop"  # "basic", "vucb1", 'vucb1-per-hop'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
 actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
+states_UL_PRBs = [v for v in actions_UL_PRBs]
+states_UL_PRBs.insert(0, 1)
 #actions_DL_PRBs = [105]
 actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
+states_DL_PRBs = [v for v in actions_UL_PRBs]
+states_DL_PRBs.insert(0, 1)
 #actions_GPU_freq = [1500]
 actions_GPU_freq = list(range(500, 1601, 500))
 
@@ -172,10 +176,10 @@ max_action_list = list(np.amax(np.array(all_actions), axis=0))
 max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost)])
 min_action_list = list(np.amin(np.array(all_actions), axis=0))
 min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
-cost_of_qos = 10*max_action_cost  + 1
+cost_of_qos = (max_action_cost - min_action_cost)/0.1
 
 # Desired QoS
-e2e_bound = 120
+e2e_bound = 150
 ul_bound = 50
 edge_bound = 20 
 dl_bound = 50

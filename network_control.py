@@ -1,4 +1,4 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list, states_UL_PRBs, states_DL_PRBs
 
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
@@ -48,7 +48,7 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                         if 'mean' not in qos_results[slicename][flow][hop]:
                             hop_qos_reward = 0
                             break
-                        if qos_results[slicename][flow][hop]['mean'] > delay_bounds[k]:
+                        if qos_results[slicename][flow][hop]['median'] > delay_bounds[k]:
                             hop_qos_reward = 0
                             break
                     hop_arm_selected = trajectory_dic[slicename][hop]
@@ -131,8 +131,8 @@ def find_bandwidth_demand(slice_list):
         bw_dic[slicename]["DL"] = slice_list[3]
 
     elif bandwidth_demand_estimator == 'vucb1':
-        mean_UL_PRBs = find_smallest_greater(slice_list[1], actions_UL_PRBs)
-        mean_DL_PRBs = find_smallest_greater(slice_list[1], actions_DL_PRBs)
+        mean_UL_PRBs = find_smallest_greater(slice_list[1], states_UL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
         state = (mean_UL_PRBs, mean_DL_PRBs)
         if state not in vucb1_dic:
             vucb1_dic[state] = vUCB1(all_actions, arm_correlations)
@@ -143,8 +143,8 @@ def find_bandwidth_demand(slice_list):
         bw_dic[slicename]["state"] = state
     
     elif bandwidth_demand_estimator == 'vucb1-per-hop':
-        mean_UL_PRBs = find_smallest_greater(slice_list[1], actions_UL_PRBs)
-        mean_DL_PRBs = find_smallest_greater(slice_list[1], actions_DL_PRBs)
+        mean_UL_PRBs = find_smallest_greater(slice_list[1], states_UL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
         state_ul = mean_UL_PRBs
         state_edge = mean_UL_PRBs
         state_dl = mean_DL_PRBs
@@ -325,6 +325,8 @@ def network_control_function(pipe, ports_per_ue):
 
             # Resolve resource contention
             bws_ul, bws_dl = resolve_contention(action_dic)
+
+            #bws_ul, bws_dl = initial_bws, initial_bws
 
             # Allocate bandwidths
             bws_ul_string = ''

@@ -150,6 +150,7 @@ def compute_statistics(delays):
     """Calculate and return statistical measures from the list of delays."""
     n = len(delays)
     mean_delay = sum(delays) / n
+    median_delay = np.median(delays)
     max_delay = max(delays)
     min_delay = min(delays)
     variance = sum((x - mean_delay) ** 2 for x in delays) / n
@@ -158,6 +159,7 @@ def compute_statistics(delays):
     percentile = np.percentile(delays, percentage, method='inverted_cdf') 
     stats = {
         'mean': round(mean_delay, 2),
+        'median': round(median_delay, 2),
         'max': round(max_delay, 2),
         'min': round(min_delay, 2),
         'std': round(std_deviation, 2),
