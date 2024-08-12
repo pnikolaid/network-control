@@ -1,4 +1,4 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list, states_UL_PRBs, states_DL_PRBs
+from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list, states_UL_PRBs, states_DL_PRBs, experiment_results
 
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
@@ -48,7 +48,7 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                         if 'mean' not in qos_results[slicename][flow][hop]:
                             hop_qos_reward = 0
                             break
-                        if qos_results[slicename][flow][hop]['median'] > delay_bounds[k]:
+                        if qos_results[slicename][flow][hop]['mean'] > delay_bounds[k]:
                             hop_qos_reward = 0
                             break
                     hop_arm_selected = trajectory_dic[slicename][hop]
@@ -158,6 +158,15 @@ def find_bandwidth_demand(slice_list):
             bw_dic[slicename][hop] = hop_arm_selected
         bw_dic[slicename]["state"] = state_components
     
+    elif bandwidth_demand_estimator == 'static':
+        for count, key in enumerate(experiment_setup):
+            if key == slicename: break
+        count -= 1
+        bw_dic[slicename]['UL'] = initial_bws[count]
+        bw_dic[slicename]['DL'] = initial_bws[count]
+        bw_dic[slicename]['EDGE'] = 1600
+
+    
     return bw_dic
         
 
@@ -198,8 +207,8 @@ parent_directory = os.path.dirname(os.getcwd())
 copies_folder = os.path.join(parent_directory, '5G-copies')
 os.makedirs(copies_folder, exist_ok=True)
 
-pickle_fileame = f"{experiment_identifier}.pkl"
-pickle_filepath = os.path.join(trajectories_folder, pickle_fileame)
+pickle_fileame = f"{bandwidth_demand_estimator}.pkl"
+pickle_filepath = os.path.join(experiment_results, pickle_fileame)
 pickle_file = open(pickle_filepath,'ab')
 
 servername = experiment_setup["server"][0][0]

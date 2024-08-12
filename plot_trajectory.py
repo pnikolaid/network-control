@@ -1,9 +1,11 @@
-from parameters import trajectories_folder, slot_length, e2e_bound
+from parameters import trajectories_folder, slot_length, e2e_bound, results_folder, experiment_results, bandwidth_demand_estimator
 import os
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+
+last_samples = 30
 
 def check_e2e_qos(qos_results, slicename):
     if 'OpenRTiST' in slicename:
@@ -55,13 +57,14 @@ def average_per_unique_value(a, b):
         average = np.mean(a[mask])
         averages[value] = average
         values_per_unique_value[value] = a[mask]
-        recent_averages[value] = np.mean(a[mask][-30:])
+        recent_averages[value] = np.mean(a[mask][-last_samples:])
 
     
     return averages, recent_averages
 
 
-most_recent_pickle_filepath = find_most_recent_file(trajectories_folder)
+most_recent_pickle_filepath = f'{experiment_results}/{bandwidth_demand_estimator}.pkl'
+save_path = f'{experiment_results}'
 
 # pickle_fileame = f"{experiment_identifier}.pkl"
 # pickle_filepath = os.path.join(trajectories_folder, pickle_fileame)
@@ -184,40 +187,41 @@ for slicename in plot_results:
     bar_width = 0.4  # Width of each bar
 
     # SECOND SUBPLOT FOR per state QoS
-    y_qos = [int(100*v) for v in qos_per_active_flows.values()]
-    bars = ax2.bar(qos_per_active_flows.keys(), y_qos, bar_width)
+    y_qos = [int(100*v) for v in qos_recent_per_active_flows.values()]
+    bars = ax2.bar(qos_recent_per_active_flows.keys(), y_qos, bar_width)
 
-    barss = ax2.bar(list(qos_per_active_flows.keys())[-1] +  1, int(100*e2e_qos_avg[-1]), bar_width)
+    #barss = ax2.bar(list(qos_per_active_flows.keys())[-1] +  1, int(100*e2e_qos_avg[-1]), bar_width)
+    #height = barss[0].get_height()
+    #ax2.text(barss[0].get_x() + barss[0].get_width() / 2, height/2, f'{height}%', ha='center', va='bottom')
 
     # Annotate bars with their values
     for bar in bars:
         height = bar.get_height()
         ax2.text(bar.get_x() + bar.get_width() / 2, height/2, f'{height}%', ha='center', va='bottom')
-    height = barss[0].get_height()
-    ax2.text(barss[0].get_x() + barss[0].get_width() / 2, height/2, f'{height}%', ha='center', va='bottom')
+
 
     # Add labels and title
     ax2.set_xlabel('Active Flows')
-    ax2.set_ylabel('QoS Satisfied')
+    ax2.set_ylabel(f'QoS Delivery')
     #ax2.set_title('QoS')
-    ax2_ticks = list(qos_per_active_flows.keys())
-    ax2_ticks.append(ax2_ticks[-1] +  1)                 
+    ax2_ticks = list(qos_recent_per_active_flows.keys())
+    #ax2_ticks.append(ax2_ticks[-1] +  1)                 
     ax2.set_xticks(ax2_ticks)
-    ax2_ticklabels = list(qos_per_active_flows.keys())
-    ax2_ticklabels.append('overall')
+    ax2_ticklabels = list(qos_recent_per_active_flows.keys())
+   # ax2_ticklabels.append('overall')
     ax2.set_xticklabels(ax2_ticklabels)
     ax2.legend()
     
     # THIRD SUBPLOT for per state BW
 
     # X positions for the groups of bars
-    x = np.arange(len(ul_prb_per_active_flows))
+    x = np.arange(len(ul_prb_recent_per_active_flows))
 
     # Plot bars for Category 1
-    bars1 = ax3.bar(x - bar_width/2, ul_prb_per_active_flows.values(), bar_width, label='uplink')
+    bars1 = ax3.bar(x - bar_width/2, ul_prb_recent_per_active_flows.values(), bar_width, label='uplink')
 
     # Plot bars for Category 2
-    bars2 = ax3.bar(x + bar_width/2, dl_prb_per_active_flows.values(), bar_width, label='downlink')
+    bars2 = ax3.bar(x + bar_width/2, dl_prb_recent_per_active_flows.values(), bar_width, label='downlink')
 
     # Annotate bars with their values
     for bars in [bars1, bars2]:
@@ -227,15 +231,15 @@ for slicename in plot_results:
 
     # Add labels and title
     ax3.set_xlabel('Active Flows')
-    ax3.set_ylabel('Average PRBs')
+    ax3.set_ylabel(f'Avg. PRBs')
     #ax3.set_title('Bandwidth Allocations')
     ax3.set_xticks(x)
-    ax3.set_xticklabels(ul_prb_per_active_flows.keys())
+    ax3.set_xticklabels(ul_prb_recent_per_active_flows.keys())
     ax3.legend()
 
     # FOURTH SUBPLOT FOR per state GPU
-    y_gpu = [int(v) for v in gpu_freqs_per_active_flows.values()]
-    bars = ax4.bar(gpu_freqs_per_active_flows.keys(), y_gpu, bar_width)
+    y_gpu = [int(v) for v in gpu_freqs_recent_per_active_flows.values()]
+    bars = ax4.bar(gpu_freqs_recent_per_active_flows.keys(), y_gpu, bar_width)
 
     # Annotate bars with their values
     for bar in bars:
@@ -244,11 +248,11 @@ for slicename in plot_results:
 
     # Add labels and title
     ax4.set_xlabel('Active Flows')
-    ax4.set_ylabel('GPU Freq (MHz)')
+    ax4.set_ylabel(f'Avg. GPU Freq (MHz)')
     #ax4.set_title('GPU')
-    ax4_ticks = list(gpu_freqs_per_active_flows.keys())
+    ax4_ticks = list(gpu_freqs_recent_per_active_flows.keys())
     ax4.set_xticks(ax4_ticks)
-    ax4_ticklabels = list(gpu_freqs_per_active_flows.keys())
+    ax4_ticklabels = list(gpu_freqs_recent_per_active_flows.keys())
     ax4.set_xticklabels(ax4_ticklabels)
     ax4.legend()
 
@@ -257,4 +261,8 @@ for slicename in plot_results:
     fig.tight_layout()  # Adjust layout to prevent overlap
 
     # Save the figure
-    plt.savefig(f'{slicename}.pdf')
+    plt.savefig(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pdf')
+
+    metrics = {'Avg UL PRBs': int(ul_prbs_avg[-1]), 'Avg DL PRBs': int(dl_prbs_avg[-1]), 'Avg GPU Freq': int(gpu_freqs_avg[-1]), 'QoS Delivery': round(100*e2e_qos_avg[-1], 2)}
+    with open(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pkl', 'wb') as file:
+        pickle.dump(metrics, file)

@@ -2,6 +2,10 @@ import copy
 from datetime import datetime
 import os
 import numpy as np
+import shutil
+
+experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
+scenario_name = '1'
 
 def keep_only_experiment_hosts(setup):
 
@@ -26,10 +30,16 @@ bash_folder = f"{experiment_folder}/network-bash-scripts"
 configs_5G_folder = f"{experiment_folder}/5G-configs-logs"
 plots_folder = f"{experiment_folder}/plots"
 QoS_folder = f"../QoS_files"  # contains filepath to QoS files in server
+results_folder = f"../results"
+experiment_results = f"{results_folder}/{scenario_name}"
+
+os.makedirs(results_folder, exist_ok=True)
+os.makedirs(experiment_results, exist_ok=True)
+shutil.copyfile('./parameters.py', f'{experiment_results}/parameters.py')
 
 parent_directory = os.path.dirname(os.getcwd())
 trajectories_folder = os.path.join(parent_directory, 'trajectories')
-os.makedirs(trajectories_folder, exist_ok=True)
+#os.makedirs(trajectories_folder, exist_ok=True)
 
 # gNB + CN + edge + RL algo
 finarfin = {
@@ -98,7 +108,6 @@ UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() i
 multiple_openrtist_servers = True
 
 # Experiment Parameters
-experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
 experiment_duration = 3600
 
 log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTiST repo, only for reference
@@ -129,7 +138,7 @@ openrtist_per_flow_QoS = True
 # Traffic Parameters
 openrtist_mean_on_time = 10*60
 openrtist_mean_off_time = 5*60
-openrtist_minimum_on_time = experiment_duration
+openrtist_minimum_on_time = 2*60
 
 iperf3_DL_mean_on_time = 3*60
 iperf3_DL_mean_off_time = 4*60
@@ -145,20 +154,20 @@ openrtist_rate_UL = [2.9972807843137255, 0.390072168807025, 3.19048] # UL arriva
 openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
-slot_length = 15 # in seconds
-bandwidth_demand_estimator = "vucb1-per-hop"  # "basic", "vucb1", 'vucb1-per-hop'
+slot_length = 5 # in seconds
+bandwidth_demand_estimator = "vucb1-per-hop"  # "static", "basic", "vucb1", 'vucb1-per-hop'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
-actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 5))
 states_UL_PRBs = [v for v in actions_UL_PRBs]
 states_UL_PRBs.insert(0, 1)
 #actions_DL_PRBs = [105]
-actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 5))
 states_DL_PRBs = [v for v in actions_UL_PRBs]
 states_DL_PRBs.insert(0, 1)
 #actions_GPU_freq = [1500]
-actions_GPU_freq = list(range(500, 1601, 500))
+actions_GPU_freq = list(range(500, 1601, 100))
 
 action_list = [actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs]
 
@@ -176,14 +185,16 @@ max_action_list = list(np.amax(np.array(all_actions), axis=0))
 max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost)])
 min_action_list = list(np.amin(np.array(all_actions), axis=0))
 min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
-cost_of_qos = (max_action_cost - min_action_cost)/0.1
+cost_of_qos = (max_action_cost - min_action_cost)
 
 # Desired QoS
 e2e_bound = 150
-ul_bound = 50
+ul_bound = 70
 edge_bound = 20 
-dl_bound = 50
+dl_bound = 60
 delay_bounds = [ul_bound, edge_bound, dl_bound]
 
 #vucb1 
 arm_correlations = True
+
+
