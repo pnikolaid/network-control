@@ -1,4 +1,4 @@
-from parameters import hosts, experiment_identifier, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, trajectories_folder, minimum_bandwidth, actions_UL_PRBs, actions_GPU_freq, actions_DL_PRBs, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list, states_UL_PRBs, states_DL_PRBs, experiment_results
+from parameters import hosts, bash_folder, experiment_setup, slot_length, initial_bws, bandwidth_demand_estimator, configs_5G_folder, minimum_bandwidth, all_actions, arm_correlations, e2e_bound, delay_bounds, action_list, states_UL_PRBs, states_DL_PRBs, experiment_results, joint_action_cost_parameter
 
 from download_QoS_files import perform_in_parallel, process_host_scp_created, create_ssh_client
 from parse_QoS_files import parse_QoS_function_main
@@ -10,7 +10,7 @@ import pickle
 from scp import SCPClient
 from collections import defaultdict
 import bisect
-from ucb1 import vUCB1, compute_reward
+from ucb1 import vUCB1
 
 vucb1_dic = {}
 vucb1_dic_dl = {}
@@ -30,18 +30,18 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                 if qos_results[slicename][flow]['E2E']['mean'] > e2e_bound:
                     qos_reward = 0
                     break
+            trajectory_dic[slicename]['QoS_reward'] = qos_reward
             
             if bandwidth_demand_estimator == 'vucb1':
                 state  = trajectory_dic[slicename]['state']
                 arm_selected = (trajectory_dic[slicename]["UL"], trajectory_dic[slicename]['EDGE'], trajectory_dic[slicename]["DL"])
-                vucb1_dic[state].update(arm_selected, qos_reward)
-                reward = compute_reward(arm_selected, qos_reward)
-                trajectory_dic[slicename]['QoS_reward'] = qos_reward
+                reward = vucb1_dic[state].update(arm_selected, qos_reward)
                 trajectory_dic[slicename]['reward'] = reward
 
-            elif bandwidth_demand_estimator == 'vucb1-per-hop':
+            elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr':
                 hops = ["UL", "EDGE", "DL"]
                 arm_selected = []
+                trajectory_dic[slicename]['reward'] = {}
                 for k, hop in enumerate(hops):
                     hop_qos_reward = 1
                     for flow in qos_results[slicename]:
@@ -54,10 +54,8 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                     hop_arm_selected = trajectory_dic[slicename][hop]
                     arm_selected.append(hop_arm_selected)
                     hop_state  = trajectory_dic[slicename]['state'][k]
-                    vucb1_per_hop_dics[k][hop_state].update(hop_arm_selected, hop_qos_reward)
-                reward = compute_reward(arm_selected, qos_reward)
-                trajectory_dic[slicename]['QoS_reward'] = qos_reward
-                trajectory_dic[slicename]['reward'] = reward
+                    hop_reward = vucb1_per_hop_dics[k][hop_state].update(hop_arm_selected, hop_qos_reward)
+                    trajectory_dic[slicename]['reward'][hops[k]] = hop_reward
 
 def find_smallest_greater(x, array):
     index = bisect.bisect_right(array, x)
@@ -135,14 +133,14 @@ def find_bandwidth_demand(slice_list):
         mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
         state = (mean_UL_PRBs, mean_DL_PRBs)
         if state not in vucb1_dic:
-            vucb1_dic[state] = vUCB1(all_actions, arm_correlations)
+            vucb1_dic[state] = vUCB1(all_actions, joint_action_cost_parameter, arm_correlations)
         arm_selected = vucb1_dic[state].select_arm()
         bw_dic[slicename]["UL"] = arm_selected[0]
         bw_dic[slicename]['EDGE'] = arm_selected[1]
         bw_dic[slicename]["DL"] = arm_selected[2]
         bw_dic[slicename]["state"] = state
     
-    elif bandwidth_demand_estimator == 'vucb1-per-hop':
+    elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr':
         mean_UL_PRBs = find_smallest_greater(slice_list[1], states_UL_PRBs)
         mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
         state_ul = mean_UL_PRBs
@@ -152,7 +150,7 @@ def find_bandwidth_demand(slice_list):
         hops = ['UL', 'EDGE', 'DL']
         for k, state_hop in enumerate(state_components):
             if state_hop not in vucb1_per_hop_dics[k]:
-                vucb1_per_hop_dics[k][state_hop] = vUCB1(action_list[k], arm_correlations)
+                vucb1_per_hop_dics[k][state_hop] = vUCB1(action_list[k], joint_action_cost_parameter[k], arm_correlations)
             hop_arm_selected = vucb1_per_hop_dics[k][state_hop].select_arm()
             hop = hops[k]
             bw_dic[slicename][hop] = hop_arm_selected
@@ -209,6 +207,7 @@ os.makedirs(copies_folder, exist_ok=True)
 
 pickle_fileame = f"{bandwidth_demand_estimator}.pkl"
 pickle_filepath = os.path.join(experiment_results, pickle_fileame)
+if os.path.exists(pickle_filepath): os.remove(pickle_filepath)
 pickle_file = open(pickle_filepath,'ab')
 
 servername = experiment_setup["server"][0][0]

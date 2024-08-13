@@ -155,15 +155,15 @@ openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 5 # in seconds
-bandwidth_demand_estimator = "vucb1-per-hop"  # "static", "basic", "vucb1", 'vucb1-per-hop'
+bandwidth_demand_estimator = "vucb1-per-hop-corr"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
-actions_UL_PRBs = list(range(minimum_bandwidth, 107, 5))
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
 states_UL_PRBs = [v for v in actions_UL_PRBs]
 states_UL_PRBs.insert(0, 1)
 #actions_DL_PRBs = [105]
-actions_DL_PRBs = list(range(minimum_bandwidth, 107, 5))
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
 states_DL_PRBs = [v for v in actions_UL_PRBs]
 states_DL_PRBs.insert(0, 1)
 #actions_GPU_freq = [1500]
@@ -177,15 +177,10 @@ for a in actions_UL_PRBs:
         for c in actions_DL_PRBs:
             all_actions.append(tuple([a, b, c]))
 
-
-action_cost = [1, 1, 1]
-##
-
-max_action_list = list(np.amax(np.array(all_actions), axis=0))
-max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost)])
-min_action_list = list(np.amin(np.array(all_actions), axis=0))
-min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
-cost_of_qos = (max_action_cost - min_action_cost)
+ul_prb_cost_parameter = 1
+gpu_cost_parameter = 1
+dl_prb_cost_parameter = 1
+joint_action_cost_parameter = [ul_prb_cost_parameter, gpu_cost_parameter, dl_prb_cost_parameter]
 
 # Desired QoS
 e2e_bound = 150
@@ -195,6 +190,9 @@ dl_bound = 60
 delay_bounds = [ul_bound, edge_bound, dl_bound]
 
 #vucb1 
-arm_correlations = True
+if bandwidth_demand_estimator == 'vucb1-per-hop-corr':
+    arm_correlations = True
+else:
+    arm_correlations = False
 
-
+random_seed = 4

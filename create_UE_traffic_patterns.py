@@ -1,7 +1,9 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from parameters import iperf3_DL_mean_on_time, iperf3_DL_minimum_on_time, iperf3_DL_mean_off_time, iperf3_UL_mean_on_time, iperf3_UL_minimum_on_time, iperf3_UL_mean_off_time, openrtist_mean_off_time, openrtist_mean_on_time, openrtist_minimum_on_time
+from parameters import iperf3_DL_mean_on_time, iperf3_DL_minimum_on_time, iperf3_DL_mean_off_time, iperf3_UL_mean_on_time, iperf3_UL_minimum_on_time, iperf3_UL_mean_off_time, openrtist_mean_off_time, openrtist_mean_on_time, openrtist_minimum_on_time, random_seed
+
+np.random.seed(random_seed)
 
 def create_UE_traffic(host_name, flow_type, N, T):
 

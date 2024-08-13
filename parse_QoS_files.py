@@ -331,7 +331,6 @@ def parse_QoS_function_main():
             if show_stats:
                 print_stats_dict_new(all_stats)
 
-
         # Compute iperf3 statistics
         if identifier == 'iperf3_dl':
             if show_iperf_dict:

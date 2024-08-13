@@ -1,4 +1,4 @@
-from parameters import trajectories_folder, slot_length, e2e_bound, results_folder, experiment_results, bandwidth_demand_estimator
+from parameters import slot_length, e2e_bound, experiment_results, bandwidth_demand_estimator
 import os
 import pickle
 import matplotlib.pyplot as plt
@@ -60,7 +60,7 @@ def average_per_unique_value(a, b):
         recent_averages[value] = np.mean(a[mask][-last_samples:])
 
     
-    return averages, recent_averages
+    return averages, recent_averages, values_per_unique_value
 
 
 most_recent_pickle_filepath = f'{experiment_results}/{bandwidth_demand_estimator}.pkl'
@@ -140,7 +140,7 @@ for slicename in plot_results:
 
     # FIRST SUBPLOT for mean resource allocation plots
     # Create a y-axis for active flows
-    ax1.plot(time, active_flows, color='b', label=f'flows')
+    ax1.step(time, active_flows, color='b', label=f'flows')
     #ax1.set_title('Bandwidth over Time')
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Active Flows', color='b')
@@ -174,16 +174,11 @@ for slicename in plot_results:
     ax1.legend(handles, labels)
 
     # Calculate the average of a based on the unique values in b
-    dl_prb_per_active_flows, dl_prb_recent_per_active_flows = average_per_unique_value(dl_prbs, active_flows)
-    ul_prb_per_active_flows, ul_prb_recent_per_active_flows = average_per_unique_value(ul_prbs, active_flows)
-    gpu_freqs_per_active_flows, gpu_freqs_recent_per_active_flows = average_per_unique_value(gpu_freqs, active_flows)
-    qos_per_active_flows, qos_recent_per_active_flows = average_per_unique_value(e2e_qos, active_flows)
-
-    print(dl_prb_recent_per_active_flows)
-    print(ul_prb_recent_per_active_flows)
-    print(qos_recent_per_active_flows)
-    
-
+    dl_prb_per_active_flows, dl_prb_recent_per_active_flows, dl_prb_values_per = average_per_unique_value(dl_prbs, active_flows)
+    ul_prb_per_active_flows, ul_prb_recent_per_active_flows, ul_prb_values_per = average_per_unique_value(ul_prbs, active_flows)
+    gpu_freqs_per_active_flows, gpu_freqs_recent_per_active_flows, gpu_freqs_values_per = average_per_unique_value(gpu_freqs, active_flows)
+    qos_per_active_flows, qos_recent_per_active_flows, qos_values_per = average_per_unique_value(e2e_qos, active_flows)
+  
     bar_width = 0.4  # Width of each bar
 
     # SECOND SUBPLOT FOR per state QoS
@@ -266,3 +261,50 @@ for slicename in plot_results:
     metrics = {'Avg UL PRBs': int(ul_prbs_avg[-1]), 'Avg DL PRBs': int(dl_prbs_avg[-1]), 'Avg GPU Freq': int(gpu_freqs_avg[-1]), 'QoS Delivery': round(100*e2e_qos_avg[-1], 2)}
     with open(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pkl', 'wb') as file:
         pickle.dump(metrics, file)
+
+
+    different_num_flows = list(dl_prb_values_per.keys())
+    fig, axs = plt.subplots(len(different_num_flows), 1, sharex=False)
+    for count, ax in enumerate(axs):
+        ax.set_xlabel('Rounds')
+        ax.tick_params(axis='y', labelcolor='r')
+        ax.set_ylabel('PRBs', color = 'r')
+
+        num_flows = different_num_flows[count]
+        ax.set_title(f'{num_flows} Active flows')
+
+        prb_allocations = ul_prb_values_per[num_flows]
+        prb_allocations_avg = get_runtime_avg(prb_allocations)
+        rounds = list(range(len(prb_allocations))) 
+        ax.plot(rounds, prb_allocations_avg, color='r', label ='UL')
+
+        prb_allocations = dl_prb_values_per[num_flows]
+        prb_allocations_avg = get_runtime_avg(prb_allocations)
+        rounds = list(range(len(prb_allocations))) 
+        ax.plot(rounds, prb_allocations_avg, color='r', linestyle = '--', label ='DL')
+
+        ax_gpu = ax.twinx()
+        ax_gpu.set_ylabel(f'MHz', color = 'blue')
+        ax_gpu.tick_params(axis='y', labelcolor='blue')
+
+        gpu_allocations = gpu_freqs_values_per[num_flows]
+        gpu_allocations_avg = get_runtime_avg(gpu_allocations)
+        rounds = list(range(len(gpu_allocations))) 
+        ax_gpu.plot(rounds, gpu_allocations_avg, label ='GPU', color = 'blue')
+
+        # Combine handles and labels from both axes
+        handles, labels = [], []
+        for axx in [ax, ax_gpu]:
+            if not axx: continue
+            h, l = axx.get_legend_handles_labels()
+            handles.extend(h)
+            labels.extend(l)
+
+        ax.legend(handles, labels)
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Show plot
+    plt.savefig(f'{save_path}/{bandwidth_demand_estimator}_{slicename}_per.pdf')
+

@@ -1,35 +1,31 @@
 import numpy as np
-
-from parameters import actions_UL_PRBs, actions_DL_PRBs, actions_GPU_freq, max_action_cost, min_action_cost, action_cost, cost_of_qos
 from collections import defaultdict
 import time
 
-def compute_reward(action, qos_reward, cost_of_action=action_cost, cost_of_qos_violation=cost_of_qos, action_cost_max=max_action_cost, action_cost_min=min_action_cost, visualize=False):    
-    if type(action) is list:
-        total_action_cost =  sum([x*y for x,y in zip(action, cost_of_action)])
-    else:
-        total_action_cost = action
-    round_cost = total_action_cost + (1 - qos_reward) * cost_of_qos_violation
-    round_reward = -round_cost
-    max_cost = action_cost_max + cost_of_qos_violation
-    min_cost = action_cost_min
-
-    min_reward = -max_cost
-    max_reward = -min_cost
-    round_reward = (round_reward - min_reward) / (max_reward - min_reward)
-    if visualize:
-        round_reward = -round_cost
-    return round_reward
-
 
 class vUCB1:
-    def __init__(self, actions, arm_correlations=True):
+    def __init__(self, actions, action_cost_parameter, arm_correlations=True):
         self.arms = actions
         self.num_arms = len(self.arms)
         self.iterations = 0
+        self.action_cost_parameter = action_cost_parameter
+
         # Determine if arm correlations are considered
         self.arm_correlations = arm_correlations
 
+        # Action costs
+        if type(action_cost_parameter) is list:
+            max_action_list = list(np.amax(np.array(actions), axis=0))
+            min_action_list = list(np.amin(np.array(actions), axis=0))
+
+            self.max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost_parameter)])
+            self.min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost_parameter)])
+        else:
+            action_costs = [v*action_cost_parameter for v in actions]
+            self.max_action_cost = max(action_costs)
+            self.min_action_cost = min(action_costs)
+        
+        self.cost_of_qos = (self.max_action_cost - self.min_action_cost)/ 0.2
 
         # convert to dictionaries
         self.counts_dic = defaultdict(int)
@@ -39,6 +35,23 @@ class vUCB1:
         self.times_selected_dic = defaultdict(int)
 
         self.first_time = True
+
+    def compute_normalized_reward(self, action, qos_reward):    
+        
+        if type(action) is list:
+            total_action_cost =  sum([x*y for x,y in zip(action, self.action_cost_parameter)])
+        else:
+            total_action_cost = action * self.action_cost_parameter
+        round_cost = total_action_cost + (1 - qos_reward) * self.cost_of_qos
+        round_reward = -round_cost
+        max_cost = self.max_action_cost + self.cost_of_qos
+        min_cost = self.min_action_cost
+
+        min_reward = -max_cost
+        max_reward = -min_cost
+        round_reward = (round_reward - min_reward) / (max_reward - min_reward)
+        
+        return round_reward
 
     def select_arm(self):
         if self.first_time:
@@ -86,8 +99,8 @@ class vUCB1:
     def update(self, selected_arm, QoS_reward):
 
         # The selected arm is always updated regardless of correlations
-        reward = compute_reward(selected_arm, QoS_reward)
-        self.single_arm_update(selected_arm, reward)
+        sel_reward = self.compute_normalized_reward(selected_arm, QoS_reward)
+        self.single_arm_update(selected_arm, sel_reward)
 
         # if arm correlations are considered, also update correlated arms
         if self.arm_correlations:
@@ -108,17 +121,18 @@ class vUCB1:
             # If we did not meet the SLA, smaller arms/bandwidths would also fail
             if QoS_reward == 0:
                 for arm in smaller_arms:
-                    reward = compute_reward(arm, 0)
+                    reward = self.compute_normalized_reward(arm, 0)
                     self.single_arm_update(arm, reward)
 
             # If we met the SLA, larger arms/bandwidths would also succeed
             if QoS_reward == 1:
                 for arm in larger_arms:
-                    reward = compute_reward(arm, 1)
+                    reward = self.compute_normalized_reward(arm, 1)
                     self.single_arm_update(arm, reward)
 
         # Algorithm just finished an iteration
         self.iterations += 1
+        return sel_reward
 
 
 # ------------------------------------------------- Main starts here ---------------------------------------------------
@@ -126,41 +140,33 @@ if __name__ == "__main__":
 
     # Set number of arms and their arm dependent delay to simulate rewards later on
     NUM_ARMS = 1000
-    arms = [tuple([a]) for a in range(NUM_ARMS)]
+    arms = list(range(NUM_ARMS))
     arm_dependent_delay = list(reversed(range(NUM_ARMS)))  # larger arms/bandwidths achieve smaller delay
     desired_delay_upper_bound = 100
 
-    action_cost = [0]
-    max_action_list = list(np.amax(np.array(arms), axis=0))
-    max_action_cost = sum([x*y for x,y in zip(max_action_list, action_cost)])
-    min_action_list = list(np.amin(np.array(arms), axis=0))
-    min_action_cost = sum([x*y for x,y in zip(min_action_list, action_cost)])
-    cost_of_qos = 1
+    arm_cost_parameter = 1
 
-    
     # Create an instance of UCB1 with the specified number of arms and specify if arm correlations are considered
-    ucb = vUCB1(arms, True)
+    ucb = vUCB1(arms, arm_cost_parameter, True)
 
     num_rounds = 1000
     total_reward = 0
     start_time = time.time()
     for i in range(num_rounds):
-        if i % 100 == 0 : print(i)
         # Choose an arm
         arm_selected = ucb.select_arm()
 
         # Simulate a reward for the selected arm
         noise = np.random.normal(0, 10)
-        arm_selected_index =arms.index(arm_selected)
+        arm_selected_index = arms.index(arm_selected)
         delay = arm_dependent_delay[arm_selected_index] + noise
         if delay <= desired_delay_upper_bound:
             QoS_REWARD = 1
         else:
             QoS_REWARD = 0
 
-        # Update the UCB1 model with the selected arm and reward
-        ucb.update(arm_selected, QoS_REWARD)
-        reward = compute_reward(arm_selected, QoS_REWARD)
+        # Update the UCB1 model with the selected arm and QoS reward and obtain normalized round reward
+        reward = ucb.update(arm_selected, QoS_REWARD)
         total_reward += reward
         print(f"Arm {arm_selected} QoS_Reward {QoS_REWARD} Reward {reward}")
     
