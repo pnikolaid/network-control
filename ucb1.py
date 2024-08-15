@@ -25,7 +25,7 @@ class vUCB1:
             self.max_action_cost = max(action_costs)
             self.min_action_cost = min(action_costs)
         
-        self.cost_of_qos = (self.max_action_cost - self.min_action_cost)/ 0.2
+        self.cost_of_qos = (self.max_action_cost*20/100) / 0.1 # we trade 20% of the total resources if the delay violation improves by 0.1
 
         # convert to dictionaries
         self.counts_dic = defaultdict(int)
@@ -38,7 +38,7 @@ class vUCB1:
 
     def compute_normalized_reward(self, action, qos_reward):    
         
-        if type(action) is list:
+        if type(action) is tuple:
             total_action_cost =  sum([x*y for x,y in zip(action, self.action_cost_parameter)])
         else:
             total_action_cost = action * self.action_cost_parameter

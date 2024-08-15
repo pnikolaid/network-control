@@ -38,7 +38,7 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                 reward = vucb1_dic[state].update(arm_selected, qos_reward)
                 trajectory_dic[slicename]['reward'] = reward
 
-            elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr':
+            elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr' or bandwidth_demand_estimator == 'max-estimation':
                 hops = ["UL", "EDGE", "DL"]
                 arm_selected = []
                 trajectory_dic[slicename]['reward'] = {}
@@ -130,7 +130,7 @@ def find_bandwidth_demand(slice_list):
 
     elif bandwidth_demand_estimator == 'vucb1':
         mean_UL_PRBs = find_smallest_greater(slice_list[1], states_UL_PRBs)
-        mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[3], states_DL_PRBs)
         state = (mean_UL_PRBs, mean_DL_PRBs)
         if state not in vucb1_dic:
             vucb1_dic[state] = vUCB1(all_actions, joint_action_cost_parameter, arm_correlations)
@@ -140,13 +140,14 @@ def find_bandwidth_demand(slice_list):
         bw_dic[slicename]["DL"] = arm_selected[2]
         bw_dic[slicename]["state"] = state
     
-    elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr':
+    elif bandwidth_demand_estimator == 'vucb1-per-hop' or bandwidth_demand_estimator == 'vucb1-per-hop-corr' or bandwidth_demand_estimator == 'max-estimation':
         mean_UL_PRBs = find_smallest_greater(slice_list[1], states_UL_PRBs)
-        mean_DL_PRBs = find_smallest_greater(slice_list[1], states_DL_PRBs)
+        mean_DL_PRBs = find_smallest_greater(slice_list[3], states_DL_PRBs)
         state_ul = mean_UL_PRBs
         state_edge = mean_UL_PRBs
         state_dl = mean_DL_PRBs
         state_components = [state_ul, state_edge, state_dl]
+        if bandwidth_demand_estimator == 'max-estimation': state_components = [0, 0, 0]
         hops = ['UL', 'EDGE', 'DL']
         for k, state_hop in enumerate(state_components):
             if state_hop not in vucb1_per_hop_dics[k]:
@@ -164,7 +165,6 @@ def find_bandwidth_demand(slice_list):
         bw_dic[slicename]['DL'] = initial_bws[count]
         bw_dic[slicename]['EDGE'] = 1600
 
-    
     return bw_dic
         
 

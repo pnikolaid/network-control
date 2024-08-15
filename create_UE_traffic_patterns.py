@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from parameters import iperf3_DL_mean_on_time, iperf3_DL_minimum_on_time, iperf3_DL_mean_off_time, iperf3_UL_mean_on_time, iperf3_UL_minimum_on_time, iperf3_UL_mean_off_time, openrtist_mean_off_time, openrtist_mean_on_time, openrtist_minimum_on_time, random_seed
+from parameters import iperf3_DL_mean_on_time, iperf3_DL_minimum_on_time, iperf3_DL_mean_off_time, iperf3_UL_mean_on_time, iperf3_UL_minimum_on_time, iperf3_UL_mean_off_time, openrtist_mean_off_time, openrtist_mean_on_time, openrtist_minimum_on_time, random_seed, openrtist_minimum_off_time
 
 np.random.seed(random_seed)
 
@@ -11,7 +11,9 @@ def create_UE_traffic(host_name, flow_type, N, T):
     if 'OpenRTiST' in flow_type:
         mean_on_time = openrtist_mean_on_time  
         mean_off_time = openrtist_mean_off_time
-        minimum_on_time = openrtist_minimum_on_time   
+        minimum_on_time = openrtist_minimum_on_time
+        minimum_off_time = openrtist_minimum_off_time 
+
 
     if 'iperf3_DL' in flow_type:
         mean_on_time = iperf3_DL_mean_on_time  
@@ -38,9 +40,9 @@ def create_UE_traffic(host_name, flow_type, N, T):
             off_time = np.random.exponential(mean_off_time)
             
             on_time = max(on_time, minimum_on_time)
+            #off_time = max(off_time, minimum_off_time)
 
             time += int(off_time)
-            
             end_time = min(int(time + on_time), T)
             if end_time <= T:
                 user_status[user, int(time):int(end_time)] = 1

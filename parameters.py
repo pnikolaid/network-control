@@ -5,7 +5,7 @@ import numpy as np
 import shutil
 
 experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
-scenario_name = '1'
+scenario_name = '3'
 
 def keep_only_experiment_hosts(setup):
 
@@ -101,14 +101,14 @@ hosts = copy.deepcopy(all_hosts)
 # Experiment Setup
 # conaints where the server is hosted, the slices considered, the UEs that are in each slice, and the number of flows that each generates                                                                                                                          
 # experiment_setup = {'server': [('finarfin',)], 'OpenRTiST': [('fingolfin', 2)], 'iperf3_DL': [('forlong', 1)], 'iperf3_UL': [('finrod', 1)] }  # tuple format: (hostname, maximum number of flows), cannot have a host used by two slices, slices must be of the form OpenRTiST, OpenRTiST-1, OpenRTiST-2  and so on
-experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 2)]}
+experiment_setup = {'server': [('finarfin',)],  'OpenRTiST': [('fingolfin', 3)]}
 keep_only_experiment_hosts(experiment_setup)
 
 UEs_per_slice = [len(experiment_setup[key]) for key in experiment_setup.keys() if key != 'server']  # each host has one UE thus num of UEs = num of hosts
 multiple_openrtist_servers = True
 
 # Experiment Parameters
-experiment_duration = 3600
+experiment_duration = int(3600 * 2)
 
 log_5G_state_period_in_frames = 20 # does not actually affect logging in OpenRTiST repo, only for reference
 log_5G_state_period_in_ms = 10 * log_5G_state_period_in_frames
@@ -136,9 +136,10 @@ for x in initial_bws:
 openrtist_per_flow_QoS = True
 
 # Traffic Parameters
-openrtist_mean_on_time = 10*60
-openrtist_mean_off_time = 5*60
+openrtist_mean_on_time = 8*60
+openrtist_mean_off_time = 3*60
 openrtist_minimum_on_time = 2*60
+openrtist_minimum_off_time = 1*60
 
 iperf3_DL_mean_on_time = 3*60
 iperf3_DL_mean_off_time = 4*60
@@ -155,17 +156,15 @@ openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 5 # in seconds
-bandwidth_demand_estimator = "vucb1-per-hop-corr"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr'
+bandwidth_demand_estimator = "static"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr', 'max-estimation'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
 actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
-states_UL_PRBs = [v for v in actions_UL_PRBs]
-states_UL_PRBs.insert(0, 1)
+states_UL_PRBs = list(range(0, 107, 3))
 #actions_DL_PRBs = [105]
 actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
-states_DL_PRBs = [v for v in actions_UL_PRBs]
-states_DL_PRBs.insert(0, 1)
+states_DL_PRBs = list(range(0, 107, 3))
 #actions_GPU_freq = [1500]
 actions_GPU_freq = list(range(500, 1601, 100))
 
@@ -175,7 +174,7 @@ all_actions = []
 for a in actions_UL_PRBs:
     for b in actions_GPU_freq:
         for c in actions_DL_PRBs:
-            all_actions.append(tuple([a, b, c]))
+            all_actions.append((a, b, c))
 
 ul_prb_cost_parameter = 1
 gpu_cost_parameter = 1
@@ -190,7 +189,7 @@ dl_bound = 60
 delay_bounds = [ul_bound, edge_bound, dl_bound]
 
 #vucb1 
-if bandwidth_demand_estimator == 'vucb1-per-hop-corr':
+if bandwidth_demand_estimator == 'vucb1-per-hop-corr' or 'bandwidth_demand_estimator' == 'max-estimation':
     arm_correlations = True
 else:
     arm_correlations = False

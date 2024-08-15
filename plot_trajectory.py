@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-last_samples = 30
+last_samples = 100
 
 def check_e2e_qos(qos_results, slicename):
     if 'OpenRTiST' in slicename:
@@ -258,11 +258,6 @@ for slicename in plot_results:
     # Save the figure
     plt.savefig(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pdf')
 
-    metrics = {'Avg UL PRBs': int(ul_prbs_avg[-1]), 'Avg DL PRBs': int(dl_prbs_avg[-1]), 'Avg GPU Freq': int(gpu_freqs_avg[-1]), 'QoS Delivery': round(100*e2e_qos_avg[-1], 2)}
-    with open(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pkl', 'wb') as file:
-        pickle.dump(metrics, file)
-
-
     different_num_flows = list(dl_prb_values_per.keys())
     fig, axs = plt.subplots(len(different_num_flows), 1, sharex=False)
     for count, ax in enumerate(axs):
@@ -307,4 +302,38 @@ for slicename in plot_results:
 
     # Show plot
     plt.savefig(f'{save_path}/{bandwidth_demand_estimator}_{slicename}_per.pdf')
+
+    # power
+    dl_prbs = np.array(dl_prbs)
+    dl_sf = dl_prbs / 106
+    dl_rel_power = 145 + 135*dl_sf
+    dl_rel_power_avg = get_runtime_avg(dl_rel_power)
+    dl_rel_power_final = dl_rel_power_avg[-1]
+
+
+    ul_prbs = np.array(ul_prbs)
+    ul_sf = ul_prbs / 106
+    ul_rel_power = 145 + 135*ul_sf
+    ul_rel_power_avg = get_runtime_avg(ul_rel_power)
+    ul_rel_power_final = ul_rel_power_avg[-1]
+
+    ul_rel_power_static = 145 + 135*1
+    dl_rel_power_static = 145 + 135*1
+
+    UE_dl_bwp_x = 40/106*dl_prbs # (transform PRBs to Mhz)
+    UE_power_scaling_factor = 0.4 + 0.6*(UE_dl_bwp_x - 20)/80  # according to ATIS.3GPP.38.840
+    UE_power_scaling_factor_avg = get_runtime_avg(UE_power_scaling_factor)
+    UE_power_scaling_final = UE_power_scaling_factor_avg[-1]
+    UE_power_scaling_static = 0.4 + 0.6*(40 - 20)/80
+
+
+    dl_pw_saving = abs(dl_rel_power_final - dl_rel_power_static)/dl_rel_power_static * 100
+    ul_pw_saving = abs(UE_power_scaling_final - UE_power_scaling_static)/UE_power_scaling_static * 100
+
+    metrics = {'Avg UL PRBs': int(ul_prbs_avg[-1]), 'Avg DL PRBs': int(dl_prbs_avg[-1]), 'Avg GPU Freq': int(gpu_freqs_avg[-1]), 'QoS Delivery': round(100*e2e_qos_avg[-1], 2), 'Avg BS Power Savings': int(dl_pw_saving), 'Avg UE Power Savings': int(ul_pw_saving) }
+    with open(f'{save_path}/{bandwidth_demand_estimator}_{slicename}.pkl', 'wb') as file:
+        pickle.dump(metrics, file)
+    print(metrics)
+
+
 
