@@ -313,7 +313,7 @@ control_process.start()
 message = traffic_end.recv()
 print(message)
 
-input(f"Setup is complete!! \nPress <Enter> to start the experiment...")
+# input(f"Setup is complete!! \nPress <Enter> to start the experiment...")
 
 
 # Generate Traffic by issuing the commands in traffic_commands = [start_time, host_name, command]

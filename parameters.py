@@ -5,7 +5,7 @@ import numpy as np
 import shutil
 
 experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
-scenario_name = '3'
+scenario_name = '4'
 
 def keep_only_experiment_hosts(setup):
 
@@ -136,10 +136,10 @@ for x in initial_bws:
 openrtist_per_flow_QoS = True
 
 # Traffic Parameters
-openrtist_mean_on_time = 8*60
-openrtist_mean_off_time = 3*60
-openrtist_minimum_on_time = 2*60
-openrtist_minimum_off_time = 1*60
+openrtist_mean_on_time = 10*60
+openrtist_mean_off_time = 1*60
+openrtist_minimum_on_time = 5*60
+openrtist_minimum_off_time = 1.5*60
 
 iperf3_DL_mean_on_time = 3*60
 iperf3_DL_mean_off_time = 4*60
@@ -155,16 +155,16 @@ openrtist_rate_UL = [2.9972807843137255, 0.390072168807025, 3.19048] # UL arriva
 openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
-slot_length = 5 # in seconds
+slot_length = 2 # in seconds
 bandwidth_demand_estimator = "static"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr', 'max-estimation'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
-actions_UL_PRBs = list(range(minimum_bandwidth, 107, 10))
-states_UL_PRBs = list(range(0, 107, 3))
+actions_UL_PRBs = list(range(minimum_bandwidth, 107, 20))
+states_UL_PRBs = list(range(0, 107, 4))
 #actions_DL_PRBs = [105]
-actions_DL_PRBs = list(range(minimum_bandwidth, 107, 10))
-states_DL_PRBs = list(range(0, 107, 3))
+actions_DL_PRBs = list(range(minimum_bandwidth, 107, 20))
+states_DL_PRBs = list(range(0, 107, 4))
 #actions_GPU_freq = [1500]
 actions_GPU_freq = list(range(500, 1601, 100))
 

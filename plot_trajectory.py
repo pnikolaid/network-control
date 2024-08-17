@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-last_samples = 100
+last_samples = 10
 
 def check_e2e_qos(qos_results, slicename):
     if 'OpenRTiST' in slicename:
@@ -325,7 +325,6 @@ for slicename in plot_results:
     UE_power_scaling_factor_avg = get_runtime_avg(UE_power_scaling_factor)
     UE_power_scaling_final = UE_power_scaling_factor_avg[-1]
     UE_power_scaling_static = 0.4 + 0.6*(40 - 20)/80
-
 
     dl_pw_saving = abs(dl_rel_power_final - dl_rel_power_static)/dl_rel_power_static * 100
     ul_pw_saving = abs(UE_power_scaling_final - UE_power_scaling_static)/UE_power_scaling_static * 100
