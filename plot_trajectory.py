@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-last_samples = 10
+last_samples = 100
 
 def check_e2e_qos(qos_results, slicename):
     if 'OpenRTiST' in slicename:
