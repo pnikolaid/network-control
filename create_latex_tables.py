@@ -36,23 +36,23 @@ def generate_latex_table(data, headers=None, caption=None, label=None):
 
     return latex
 
-scenario_name = 1
+scenario_name = 4
 experiment_results = f"../results/{scenario_name}"
+#algorithms = ["static", "vucb1-per-hop", "vucb1-per-hop-corr"]
 algorithms = ["static", "vucb1-per-hop-corr"]
 files = [f'{experiment_results}/{string}_OpenRTiST.pkl' for string in algorithms]
-print(files)
 
 all_data = []
-for file in files:
+for algorithm in algorithms:
+    file = f'{experiment_results}/{algorithm}_OpenRTiST.pkl'
     with open(file, 'rb') as file:
         dictionary = pickle.load(file)
         headers = list(dictionary.keys())
         values = list(dictionary.values())
         values = [int(v) for v in values]
+        values.insert(0, algorithm)
+        headers.insert(0, "Scheme")
         all_data.append(values)
-
-print(headers)
-print(all_data)
 
 table = tabulate(all_data, headers)
 print(table)

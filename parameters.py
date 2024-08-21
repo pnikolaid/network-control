@@ -5,7 +5,7 @@ import numpy as np
 import shutil
 
 experiment_identifier = str(datetime.now().strftime("%y_%m_%d_%H_%M_%S"))
-scenario_name = '4'
+scenario_name = '5'
 
 def keep_only_experiment_hosts(setup):
 
