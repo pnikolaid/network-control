@@ -18,6 +18,11 @@ vcub1_dic_edge = {}
 vucb1_dic_ul = {}
 vucb1_per_hop_dics = [vucb1_dic_dl, vcub1_dic_edge, vucb1_dic_ul]
 
+tcp_resources = []
+for hop in range(len(action_list)):
+    tcp_initialization = min(x for x in action_list[hop] if x >= action_list[hop][-1]/2)
+    tcp_resources.append(tcp_initialization)
+
 
 def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
     for slicename in trajectory_dic:
@@ -56,6 +61,27 @@ def update_bandwidth_demand_estimator(trajectory_dic, qos_results):
                     hop_state  = trajectory_dic[slicename]['state'][k]
                     hop_reward = vucb1_per_hop_dics[k][hop_state].update(hop_arm_selected, hop_qos_reward)
                     trajectory_dic[slicename]['reward'][hops[k]] = hop_reward
+            
+            elif bandwidth_demand_estimator == 'tcp':
+                hops = ["UL", "EDGE", "DL"]
+                for k, hop in enumerate(hops):
+                    hop_qos_reward = 1
+                    for flow in qos_results[slicename]:
+                        if 'mean' not in qos_results[slicename][flow][hop]:
+                            hop_qos_reward = 0
+                            break
+                        if qos_results[slicename][flow][hop]['mean'] > delay_bounds[k]:
+                            hop_qos_reward = 0
+                            break
+                    if hop_qos_reward == 0:
+                        candidates = [x for x in action_list[k] if x >= tcp_resources[k]*2] # all hop actions with double value
+                        if not candidates: candidates = [max(action_list[k])] # if cannot double any further consider max hop action
+                        tcp_resources[k] = min(candidates) # pick smallest candidate
+                    else:
+                        candidates = [x for x in action_list[k] if x < tcp_resources[k]] # find smaller hop actions
+                        if not candidates: candidates = [min(action_list[k])]
+                        tcp_resources[k] = max(candidates)
+                
 
 def find_smallest_greater(x, array):
     index = bisect.bisect_right(array, x)
@@ -164,6 +190,11 @@ def find_bandwidth_demand(slice_list):
         bw_dic[slicename]['UL'] = initial_bws[count]
         bw_dic[slicename]['DL'] = initial_bws[count]
         bw_dic[slicename]['EDGE'] = 1600
+
+    elif bandwidth_demand_estimator == 'tcp':
+        bw_dic[slicename]['UL'] = tcp_resources[0]
+        bw_dic[slicename]['EDGE'] = tcp_resources[1]
+        bw_dic[slicename]['DL'] = tcp_resources[2]
 
     return bw_dic
         

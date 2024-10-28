@@ -62,7 +62,7 @@ def average_per_unique_value(a, b):
     
     return averages, recent_averages, values_per_unique_value
 
-
+# bandwidth_demand_estimator = "vucb1-per-hop-corr"
 most_recent_pickle_filepath = f'{experiment_results}/{bandwidth_demand_estimator}.pkl'
 save_path = f'{experiment_results}'
 
@@ -271,12 +271,12 @@ for slicename in plot_results:
         prb_allocations = ul_prb_values_per[num_flows]
         prb_allocations_avg = get_runtime_avg(prb_allocations)
         rounds = list(range(len(prb_allocations))) 
-        ax.plot(rounds, prb_allocations_avg, color='r', label ='UL')
+        ax.plot(rounds, prb_allocations, color='r', label ='UL')
 
         prb_allocations = dl_prb_values_per[num_flows]
         prb_allocations_avg = get_runtime_avg(prb_allocations)
         rounds = list(range(len(prb_allocations))) 
-        ax.plot(rounds, prb_allocations_avg, color='r', linestyle = '--', label ='DL')
+        ax.plot(rounds, prb_allocations, color='r', linestyle = '--', label ='DL')
 
         ax_gpu = ax.twinx()
         ax_gpu.set_ylabel(f'MHz', color = 'blue')
@@ -285,7 +285,7 @@ for slicename in plot_results:
         gpu_allocations = gpu_freqs_values_per[num_flows]
         gpu_allocations_avg = get_runtime_avg(gpu_allocations)
         rounds = list(range(len(gpu_allocations))) 
-        ax_gpu.plot(rounds, gpu_allocations_avg, label ='GPU', color = 'blue')
+        ax_gpu.plot(rounds, gpu_allocations, label ='GPU', color = 'blue')
 
         # Combine handles and labels from both axes
         handles, labels = [], []
@@ -295,7 +295,10 @@ for slicename in plot_results:
             handles.extend(h)
             labels.extend(l)
 
-        ax.legend(handles, labels)
+        #handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc='center left', fontsize = 'x-small')
+
+        #ax.legend(handles, labels)
 
     # Adjust layout
     plt.tight_layout()
