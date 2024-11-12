@@ -193,4 +193,5 @@ if bandwidth_demand_estimator == 'vucb1-per-hop-corr' or 'bandwidth_demand_estim
 else:
     arm_correlations = False
 
+# seed
 random_seed = 4
