@@ -1,5 +1,13 @@
 # network-control
 
-Please first follow the testbed setup guide in https://github.com/KTH-EXPECA/openairinterface5g-docs/blob/main/docs/quectel/start.md
+Python scripts that automatically adapt the network resources (PRBs in UL/DL and GPU freq in the EDGE) 
+traffic_generator.py is the main python script that creates traffic scenarios and invokes the network automation code script called network_control.py
+parameters.py contain parameters for the configuration of the traffic and network control parameters
 
-Python scripts that automatically adapt the network resources (PRBs in UL/DL and GPU freq in the EDGE)
+Installation
+1) Follow the testbed setup guide in https://github.com/KTH-EXPECA/openairinterface5g-docs/blob/main/docs/quectel/start.md
+
+2) In the same folder where the customized Open Air Interface 5G repository is, clone the bash scripts in https://github.com/pnikolaid/network-bash-scripts
+
+3) Clone this repository in the same folder
+
