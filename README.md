@@ -1,8 +1,10 @@
 # network-control
 
-Python scripts that automatically adapt the network resources (PRBs in UL/DL and GPU freq in the EDGE) 
-traffic_generator.py is the main python script that creates traffic scenarios and invokes the network automation code script called network_control.py
-parameters.py contain parameters for the configuration of the traffic and network control parameters
+Python scripts that automatically adapt the network resources (PRBs in UL/DL and GPU freq in the EDGE)
+
+traffic_generator.py: the main python script that creates traffic scenarios and invokes the network automation code script called network_control.py
+
+parameters.py: contain parameters for the configuration of the traffic and network control parameters
 
 Installation
 1) Follow the testbed setup guide in https://github.com/KTH-EXPECA/openairinterface5g-docs/blob/main/docs/quectel/start.md
