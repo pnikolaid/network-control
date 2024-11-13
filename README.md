@@ -6,6 +6,8 @@ traffic_generator.py: the main python script that creates traffic scenarios and 
 
 parameters.py: contain parameters for the configuration of the traffic and network control parameters
 
+Folder "scenario_parameters" contains the parameter files of five scenarios, copy and paste such a file in the main directory and then rename it to "parameters.py"
+
 Installation
 1) Follow the testbed setup guide in https://github.com/KTH-EXPECA/openairinterface5g-docs/blob/main/docs/quectel/start.md
 
