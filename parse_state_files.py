@@ -127,6 +127,10 @@ def extract_state_metrics(data):
                 old_ue_bytes = ue_bytes
                 total_rate = (sum(rate_bytes) * 8) / (log_5G_state_period_in_ms * 1000) # in Mbps
 
+                queue_bytes = frame_data[:, 3]
+                total_queue_bytes = sum(queue_bytes)
+                current_queued_bits =  8 * total_queue_bytes
+
                 bits_per_frame = 10 * 8 * rate_bytes/log_5G_state_period_in_ms # on average bits arriving every frame
 
 
@@ -146,20 +150,16 @@ def extract_state_metrics(data):
                 spectral_efficiency = np.array([mcs_to_spectral_efficiency[m] for m in mcss])
                 old_spectral_efficiency = spectral_efficiency
 
-
-                queue_bytes = frame_data[:, 3]
-                total_queue_bytes = sum(queue_bytes)
-
-
-
                 rates_over_slot.append(total_rate)
                 PRB_factor_over_slot.append(total_PRB_factor)
                 queue_bytes_over_slot.append(total_queue_bytes)
                 slice_PRB_demand_per_flow_over_time.append(slice_PRB_demand_per_flow)
 
             current_queue = total_queue_bytes
+            PRB_factor_queue = current_queued_bits / (np.mean(old_spectral_efficiency) * 12 * symbols_per_subframe * 10 * data_resources_perc * slots_perc)                
+            
             rate_metrics = [np.mean(rates_over_slot), np.std(rates_over_slot), np.max(rates_over_slot)]
-            PRB_factor_metrics = [np.mean(PRB_factor_over_slot), np.std(PRB_factor_over_slot), np.max(PRB_factor_over_slot)]
+            PRB_factor_metrics = [np.mean(PRB_factor_over_slot) + PRB_factor_queue, np.std(PRB_factor_over_slot), np.max(PRB_factor_over_slot)]
             queue_metrics = [np.mean(queue_bytes_over_slot), np.std(queue_bytes_over_slot), np.max(queue_bytes_over_slot), current_queue]
 
             slice_PRB_demand_per_flow_over_time = np.array(slice_PRB_demand_per_flow_over_time)

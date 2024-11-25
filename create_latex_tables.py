@@ -36,7 +36,7 @@ def generate_latex_table(data, headers=None, caption=None, label=None):
 
     return latex
 
-scenario_name = 4
+scenario_name = 5
 experiment_results = f"../results/{scenario_name}"
 #algorithms = ["static", "vucb1-per-hop", "vucb1-per-hop-corr"]
 algorithms = ["static", "vucb1-per-hop-corr"]

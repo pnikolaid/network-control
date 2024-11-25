@@ -155,7 +155,7 @@ openrtist_rate_DL = [0.9915711999999999, 0.13577541928699763, 1.07132]
 
 # Network Control Parameters
 slot_length = 5 # in seconds
-bandwidth_demand_estimator = "static"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr', 'max-estimation', 'tcp'
+bandwidth_demand_estimator = "vucb1-per-hop-corr"  # "static", "basic", "vucb1", 'vucb1-per-hop', 'vucb1-per-hop-corr', 'max-estimation', 'tcp'
 minimum_bandwidth = 10 # PRBs
 
 # Configure action space and action/QoS cost
