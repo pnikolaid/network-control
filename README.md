@@ -14,4 +14,3 @@ Installation
 2) Clone the bash scripts in https://github.com/pnikolaid/network-bash-scripts in the same folder where the customized Open Air Interface 5G repository of step 1
 
 3) Clone this repository in the same folder
-
